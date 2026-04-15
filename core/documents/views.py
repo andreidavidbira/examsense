@@ -8,6 +8,8 @@ from .models import Document
 from .serializers import DocumentSerializer
 from .utils import extract_text_from_pdf, extract_text_from_docx
 
+from nlp.services import extract_concepts
+
 
 # upload document + extragere text
 class UploadDocumentView(APIView):
@@ -32,7 +34,19 @@ class UploadDocumentView(APIView):
         else:
             text = "Unsupported file type"
 
+        # extragere concepte
+        concepts = extract_concepts(text)
+        
         document.extracted_text = text
         document.save()
 
-        return Response(DocumentSerializer(document).data)
+        
+        return Response({
+            "id": document.id,
+            "file": document.file.url,
+            "uploaded_at": document.uploaded_at,
+            "extracted_text": text,
+            "concepts": concepts
+        })
+        
+        
