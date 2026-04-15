@@ -1,29 +1,10 @@
-import spacy
-import re
 from langdetect import detect
+import spacy
 
-# incarca ambele limbi(engleza si romana)
+from nlp.definition_extractor import extract_definitions
+
 nlp_ro = spacy.load("ro_core_news_sm")
 nlp_en = spacy.load("en_core_web_sm")
-
-STOPWORDS_RO = {"etapa", "aceasta", "acest", "implementarea", "se", "sa", "si", "in", "la", "de", "cu"}
-STOPWORDS_EN = {"the", "this", "that", "and", "in", "on", "of", "for", "with"}
-
-
-def normalize_text(text):
-    text = re.sub(r'\s+', ' ', text)
-
-    # normalizare diacritice
-    replacements = {
-        "ă": "a", "â": "a", "î": "i",
-        "ș": "s", "ş": "s",
-        "ț": "t", "ţ": "t"
-    }
-
-    for k, v in replacements.items():
-        text = text.replace(k, v)
-
-    return text.strip()
 
 
 def detect_language(text):
@@ -33,51 +14,22 @@ def detect_language(text):
         return "unknown"
 
 
-def extract_concepts(text):
-    text = normalize_text(text)
+def split_sentences(text):
     lang = detect_language(text)
 
     if lang == "ro":
         doc = nlp_ro(text)
-        stopwords = STOPWORDS_RO
     else:
         doc = nlp_en(text)
-        stopwords = STOPWORDS_EN
 
-    concepts = set()
+    return [sent.text.strip() for sent in doc.sents]
 
-    # 🔹 ENGLEZA
-    if lang == "en":
-        for chunk in doc.noun_chunks:
-            concept = chunk.text.strip().lower()
 
-            if len(concept) < 3:
-                continue
+def process_text(text):
+    sentences = split_sentences(text)
 
-            if len(concept.split()) > 4:
-                continue
-
-            if any(word in stopwords for word in concept.split()):
-                continue
-
-            concepts.add(concept)
-
-    # 🔹 ROMANA (fallback corect)
-    elif lang == "ro":
-        for token in doc:
-            # luam doar substantive
-            if token.pos_ in ["NOUN", "PROPN"]:
-                concept = token.text.strip().lower()
-
-                if len(concept) < 3:
-                    continue
-
-                if concept in stopwords:
-                    continue
-
-                concepts.add(concept)
+    definitions = extract_definitions(sentences)
 
     return {
-        "language": lang,
-        "concepts": sorted(list(concepts))
+        "definitions": definitions
     }
