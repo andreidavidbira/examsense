@@ -1,5 +1,5 @@
-from langdetect import detect
 import spacy
+from langdetect import detect
 
 from nlp.definition_extractor import extract_definitions
 
@@ -9,9 +9,10 @@ nlp_en = spacy.load("en_core_web_sm")
 
 def detect_language(text):
     try:
-        return detect(text)
+        lang = detect(text)
+        return "ro" if "ro" in lang else "en"
     except:
-        return "unknown"
+        return "en"
 
 
 def split_sentences(text):
@@ -27,9 +28,14 @@ def split_sentences(text):
 
 def process_text(text):
     sentences = split_sentences(text)
-
     definitions = extract_definitions(sentences)
 
     return {
         "definitions": definitions
     }
+
+
+# pentru compatibilitate cu restul proiectului
+def extract_concepts(text):
+    result = process_text(text)
+    return result["definitions"]

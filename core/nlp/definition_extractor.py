@@ -1,45 +1,70 @@
-import re
 from nlp.patterns import ROMANIAN_PATTERNS, ENGLISH_PATTERNS
+from langdetect import detect
+
+
+def detect_language(text):
+    try:
+        lang = detect(text)
+        return "ro" if "ro" in lang else "en"
+    except:
+        return "en"
 
 
 def extract_definitions(sentences):
     definitions = []
 
-    for sent in sentences:
-        text = sent.strip().lower()
+    for sentence in sentences:
+        original_sentence = sentence.strip()
+        sentence_lower = original_sentence.lower()
 
-        found = False
-
-        # ROMANA
-        for pattern in ROMANIAN_PATTERNS:
-            pattern_regex = r'\b' + re.escape(pattern) + r'\b'
-            if re.search(pattern_regex, text): # de exemplu pentru "is" sa fie detectat in interiorul altor cuvinte
-                parts = text.split(pattern, 1)
-                found = True
-                break
-
-        # ENGLEZA
-        if not found:
-            for pattern in ENGLISH_PATTERNS:
-                pattern_regex = r'\b' + re.escape(pattern) + r'\b'
-                if re.search(pattern_regex, text): # la fel ca mai sus
-                    parts = text.split(pattern, 1)
-                    found = True
-                    break
-
-        if not found:
+        if len(sentence_lower) < 10:
             continue
 
-        if len(parts) == 2:
-            concept = parts[0].strip()
-            definition = parts[1].strip()
+        lang = detect_language(sentence_lower)
 
-            # filtrare
-            if len(concept) > 2 and len(definition) > 5:
+        patterns = ROMANIAN_PATTERNS if lang == "ro" else ENGLISH_PATTERNS
+
+        for pattern in patterns:
+            if pattern in sentence_lower:
+
+                parts = sentence_lower.split(pattern)
+
+                if len(parts) < 2:
+                    continue
+
+                concept = parts[0].strip()
+                definition = parts[1].strip()
+
+                # curatare simpla concept
+                concept = clean_concept(concept)
+
+                if len(concept) < 3 or len(definition) < 5:
+                    continue
+
                 definitions.append({
                     "concept": concept,
                     "definition": definition,
-                    "pattern": pattern
+                    "pattern": pattern,
+                    "language": lang,
+                    "sentence": original_sentence
                 })
 
+                break
+
     return definitions
+
+
+def clean_concept(text):
+    # elimina numerotari si simboluri
+    text = text.strip()
+
+    prefixes = ["-", "•", "*"]
+    for p in prefixes:
+        if text.startswith(p):
+            text = text[1:].strip()
+
+    # elimina numerotari gen "1.2.3"
+    while len(text) > 0 and (text[0].isdigit() or text[0] == "."):
+        text = text[1:].strip()
+
+    return text
