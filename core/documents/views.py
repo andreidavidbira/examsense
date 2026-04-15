@@ -35,7 +35,7 @@ class UploadDocumentView(APIView):
             text = "Unsupported file type"
 
         # extragere concepte
-        concepts = extract_concepts(text)
+        result = extract_concepts(text)
         
         document.extracted_text = text
         document.save()
@@ -46,7 +46,8 @@ class UploadDocumentView(APIView):
             "file": document.file.url,
             "uploaded_at": document.uploaded_at,
             "extracted_text": text,
-            "concepts": concepts
-        })
+            "language": result["language"],
+            "concepts": result["concepts"]
+})
         
         
