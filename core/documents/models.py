@@ -57,3 +57,40 @@ class GeneratedQuestion(models.Model):
 
     def __str__(self):
         return self.question_text[:80]
+
+
+class QuizAttempt(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="quiz_attempts"
+    )
+    document = models.ForeignKey(
+        Document,
+        on_delete=models.CASCADE,
+        related_name="quiz_attempts"
+    )
+    score = models.IntegerField(default=0)
+    total_questions = models.IntegerField(default=0)
+    completed_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Attempt {self.id} - {self.user} - {self.document.id}"
+
+
+class QuizAnswer(models.Model):
+    attempt = models.ForeignKey(
+        QuizAttempt,
+        on_delete=models.CASCADE,
+        related_name="answers"
+    )
+    question = models.ForeignKey(
+        GeneratedQuestion,
+        on_delete=models.CASCADE,
+        related_name="user_answers"
+    )
+    selected_answer = models.TextField()
+    is_correct = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Answer {self.id} - Attempt {self.attempt.id}"
