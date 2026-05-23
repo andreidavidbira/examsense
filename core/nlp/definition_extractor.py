@@ -1,5 +1,6 @@
 from nlp.patterns import ROMANIAN_PATTERNS, ENGLISH_PATTERNS
 from langdetect import detect
+import re
 
 
 def detect_language(text):
@@ -17,6 +18,7 @@ def extract_definitions(sentences):
         original_sentence = sentence.strip()
         sentence_lower = original_sentence.lower()
 
+        # ignoram propozitii prea scurte
         if len(sentence_lower) < 10:
             continue
 
@@ -35,10 +37,18 @@ def extract_definitions(sentences):
                 concept = parts[0].strip()
                 definition = parts[1].strip()
 
-                # curatare simpla concept
+                # curatare concept
                 concept = clean_concept(concept)
 
-                if len(concept) < 3 or len(definition) < 5:
+                # filtrare concept slab
+                if not concept or len(concept) < 3:
+                    continue
+
+                # filtrare definitii slabe
+                if len(definition.split()) < 3:
+                    continue
+
+                if definition.startswith(("si", "sau", "iar", "and", "or")):
                     continue
 
                 definitions.append({
@@ -51,20 +61,58 @@ def extract_definitions(sentences):
 
                 break
 
-    return definitions
+    # eliminare duplicate
+    unique = []
+    seen = set()
+
+    for d in definitions:
+        key = (d["concept"], d["definition"])
+
+        if key not in seen:
+            seen.add(key)
+            unique.append(d)
+
+    # sortare dupa calitate (definitii mai lungi = mai bune)
+    unique = sorted(
+        unique,
+        key=lambda x: len(x["definition"]),
+        reverse=True
+    )
+
+    return unique
 
 
 def clean_concept(text):
-    # elimina numerotari si simboluri
-    text = text.strip()
+    text = text.strip().lower()
 
-    prefixes = ["-", "•", "*"]
-    for p in prefixes:
-        if text.startswith(p):
-            text = text[1:].strip()
+    # elimina bullet-uri si simboluri
+    text = re.sub(r"^[\-\•\*\–\—\s]+", "", text)
 
-    # elimina numerotari gen "1.2.3"
-    while len(text) > 0 and (text[0].isdigit() or text[0] == "."):
-        text = text[1:].strip()
+    # elimina numerotari (1., 1.2, 1.2.3)
+    text = re.sub(r"^\d+(\.\d+)*\.?\s*", "", text)
 
-    return text
+    # elimina caractere non-litera la inceput
+    text = re.sub(r"^[^a-zA-ZăâîșțĂÂÎȘȚ]+", "", text)
+
+    # elimina articole
+    articles = ["un ", "o ", "the ", "a ", "an "]
+
+    for art in articles:
+        if text.startswith(art):
+            text = text[len(art):]
+
+    # elimina concepte inutile
+    stop_words = [
+        "si", "sau", "iar", "dar",
+        "care", "ce", "la", "in", "cu",
+        "pentru", "asupra", "de"
+    ]
+
+    if text in stop_words:
+        return ""
+
+    # prea scurt = inutil
+    if len(text) < 3:
+        return ""
+
+    return text.strip()
