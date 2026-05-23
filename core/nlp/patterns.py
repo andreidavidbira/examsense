@@ -173,7 +173,7 @@ ENGLISH_PATTERN_CONTEXT = [
     "is implemented in",
 ]
 
-# optional (daca vrei sa pastrezi separat)
+# optional
 ENGLISH_PATTERN_CLASSIFICATION = [
     "is a type of",
     "is a kind of",
