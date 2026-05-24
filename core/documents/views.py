@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db.models import Avg, Max, Min, Count
 
 from rest_framework.views import APIView
@@ -18,22 +19,140 @@ from .serializers import (
     QuizAttemptSerializer,
     SubmitQuizInputSerializer,
     SubmitQuizResponseSerializer,
-    QuizStatsResponseSerializer
+    QuizStatsResponseSerializer,
+    GeneratedQuestionSerializer
 )
 from .utils import extract_text_from_pdf, extract_text_from_docx
 
 from nlp.services import process_text
 from quiz.services import generate_questions
+from users.throttles import UploadRateThrottle, QuizSubmitRateThrottle
+
+
+def validate_uploaded_file(file):
+    allowed_extensions = [".pdf", ".docx"]
+    allowed_content_types = [
+        "application/pdf",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ]
+
+    filename = file.name.lower()
+
+    if not any(filename.endswith(ext) for ext in allowed_extensions):
+        raise ValueError("Unsupported file type.")
+
+    if hasattr(file, "content_type") and file.content_type:
+        if file.content_type not in allowed_content_types:
+            raise ValueError("Invalid file content type.")
+
+    max_size = settings.FILE_UPLOAD_MAX_MEMORY_SIZE
+    if file.size > max_size:
+        raise ValueError("File is too large.")
+
+
+def get_user_document_number(user, document_id):
+    return (
+        Document.objects
+        .filter(user=user, id__lte=document_id)
+        .count()
+    )
+
+
+def get_user_attempt_number(user, attempt_id):
+    return (
+        QuizAttempt.objects
+        .filter(user=user, id__lte=attempt_id)
+        .count()
+    )
+
+
+def build_questions_for_document(document, difficulty="medium", max_q=10):
+    db_definitions = list(document.definitions.all().order_by("id"))
+
+    definitions = []
+    for d in db_definitions:
+        definitions.append({
+            "concept": d.concept,
+            "definition": d.definition,
+            "pattern": d.pattern,
+            "language": d.language,
+            "sentence": d.sentence,
+        })
+
+    questions = generate_questions(
+        definitions,
+        difficulty=difficulty,
+        max_questions=max_q
+    )
+
+    GeneratedQuestion.objects.filter(document=document).delete()
+
+    definition_map = {}
+    for db_def in db_definitions:
+        key = (db_def.concept, db_def.definition, db_def.language)
+        definition_map[key] = db_def
+
+    saved_questions = []
+
+    for q in questions:
+        source_definition_obj = None
+
+        if q.get("type") == "mcq":
+            for d in definitions:
+                if (
+                    d.get("definition") == q.get("correct_answer") and
+                    d.get("language") == q.get("language")
+                ):
+                    key = (
+                        d.get("concept"),
+                        d.get("definition"),
+                        d.get("language")
+                    )
+                    source_definition_obj = definition_map.get(key)
+                    break
+
+        elif q.get("type") == "mcq_reverse":
+            for d in definitions:
+                if (
+                    d.get("concept", "").lower() == str(q.get("correct_answer", "")).lower()
+                    and d.get("language") == q.get("language")
+                ):
+                    key = (
+                        d.get("concept"),
+                        d.get("definition"),
+                        d.get("language")
+                    )
+                    source_definition_obj = definition_map.get(key)
+                    break
+
+        saved_question = GeneratedQuestion.objects.create(
+            document=document,
+            source_definition=source_definition_obj,
+            question_type=q.get("type"),
+            language=q.get("language"),
+            question_text=q.get("question"),
+            options=q.get("options", None),
+            correct_answer=str(q.get("correct_answer"))
+        )
+        saved_questions.append(saved_question)
+
+    return saved_questions
 
 
 class UploadDocumentView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [UploadRateThrottle]
 
     def post(self, request):
         file = request.FILES.get("file")
 
         if not file:
             return Response({"error": "No file provided"}, status=400)
+
+        try:
+            validate_uploaded_file(file)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=400)
 
         filename = file.name.lower()
 
@@ -66,8 +185,6 @@ class UploadDocumentView(APIView):
         try:
             result = process_text(text)
             definitions = result.get("definitions", [])
-            definitions_ro = result.get("definitions_ro", [])
-            definitions_en = result.get("definitions_en", [])
         except Exception as e:
             return Response({
                 "error": "Eroare la procesarea textului",
@@ -76,10 +193,8 @@ class UploadDocumentView(APIView):
 
         ExtractedDefinition.objects.filter(document=document).delete()
 
-        saved_definitions = []
-
         for d in definitions:
-            db_definition = ExtractedDefinition.objects.create(
+            ExtractedDefinition.objects.create(
                 document=document,
                 concept=d.get("concept", ""),
                 definition=d.get("definition", ""),
@@ -87,70 +202,16 @@ class UploadDocumentView(APIView):
                 language=d.get("language", ""),
                 sentence=d.get("sentence", "")
             )
-            saved_definitions.append(db_definition)
 
         try:
             difficulty = request.data.get("difficulty", "medium")
             max_q = int(request.data.get("max_questions", 10))
-
-            questions = generate_questions(
-                definitions,
-                difficulty=difficulty,
-                max_questions=max_q
-            )
+            build_questions_for_document(document, difficulty=difficulty, max_q=max_q)
         except Exception as e:
             return Response({
                 "error": "Eroare la generarea intrebarilor",
                 "details": str(e)
             }, status=500)
-
-        GeneratedQuestion.objects.filter(document=document).delete()
-
-        definition_map = {}
-        for db_def in saved_definitions:
-            key = (db_def.concept, db_def.definition, db_def.language)
-            definition_map[key] = db_def
-
-        for q in questions:
-            source_definition_obj = None
-
-            if q.get("type") == "mcq":
-                for d in definitions:
-                    if (
-                        d.get("definition") == q.get("correct_answer") and
-                        d.get("language") == q.get("language")
-                    ):
-                        key = (
-                            d.get("concept"),
-                            d.get("definition"),
-                            d.get("language")
-                        )
-                        source_definition_obj = definition_map.get(key)
-                        break
-
-            elif q.get("type") == "mcq_reverse":
-                for d in definitions:
-                    if (
-                        d.get("concept", "").lower() == str(q.get("correct_answer", "")).lower()
-                        and d.get("language") == q.get("language")
-                    ):
-                        key = (
-                            d.get("concept"),
-                            d.get("definition"),
-                            d.get("language")
-                        )
-                        source_definition_obj = definition_map.get(key)
-                        break
-
-            GeneratedQuestion.objects.create(
-                document=document,
-                source_definition=source_definition_obj,
-                question_type=q.get("type"),
-                language=q.get("language"),
-                question_text=q.get("question"),
-                options=q.get("options", None),
-                correct_answer=str(q.get("correct_answer"))
-            )
 
         db_definitions = document.definitions.all().order_by("id")
         db_definitions_ro = db_definitions.filter(language="ro")
@@ -163,13 +224,49 @@ class UploadDocumentView(APIView):
             "definitions": ExtractedDefinitionSerializer(db_definitions, many=True).data,
             "definitions_ro": ExtractedDefinitionSerializer(db_definitions_ro, many=True).data,
             "definitions_en": ExtractedDefinitionSerializer(db_definitions_en, many=True).data,
-            "questions": questions
+            "questions": GeneratedQuestionSerializer(
+                document.generated_questions.all().order_by("id"),
+                many=True
+            ).data
         }
 
         if not definitions:
             response_data["warning"] = "Nu s-au putut extrage suficiente definitii relevante din document"
 
         return Response(response_data)
+
+
+class RegenerateQuestionsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, document_id):
+        try:
+            document = Document.objects.prefetch_related("definitions").get(
+                id=document_id,
+                user=request.user
+            )
+        except Document.DoesNotExist:
+            return Response({"error": "Document not found"}, status=404)
+
+        if not document.definitions.exists():
+            return Response({"error": "Documentul nu are definiții extrase."}, status=400)
+
+        try:
+            difficulty = request.data.get("difficulty", "medium")
+            max_q = int(request.data.get("max_questions", 10))
+            saved_questions = build_questions_for_document(document, difficulty=difficulty, max_q=max_q)
+        except Exception as e:
+            return Response({
+                "error": "Nu am putut genera un nou set de întrebări.",
+                "details": str(e)
+            }, status=500)
+
+        return Response({
+            "message": "A fost generat un nou set de întrebări.",
+            "document_id": document.id,
+            "user_document_number": get_user_document_number(request.user, document.id),
+            "questions": GeneratedQuestionSerializer(saved_questions, many=True).data
+        })
 
 
 class DocumentListView(APIView):
@@ -212,6 +309,7 @@ class DeleteDocumentView(APIView):
 
 class SubmitQuizView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [QuizSubmitRateThrottle]
 
     def post(self, request):
         input_serializer = SubmitQuizInputSerializer(data=request.data)
@@ -284,9 +382,14 @@ class SubmitQuizView(APIView):
         attempt.total_questions = questions.count()
         attempt.save()
 
+        user_document_number = get_user_document_number(request.user, document.id)
+        user_attempt_number = get_user_attempt_number(request.user, attempt.id)
+
         response_data = {
             "attempt_id": attempt.id,
+            "user_attempt_number": user_attempt_number,
             "document_id": document.id,
+            "user_document_number": user_document_number,
             "score": score,
             "total_questions": attempt.total_questions,
             "results": results

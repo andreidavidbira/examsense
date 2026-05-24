@@ -52,14 +52,18 @@ class QuizAnswerSerializer(serializers.ModelSerializer):
 
 class QuizAttemptSerializer(serializers.ModelSerializer):
     document_file = serializers.SerializerMethodField()
+    user_document_number = serializers.SerializerMethodField()
+    user_attempt_number = serializers.SerializerMethodField()
     answers = QuizAnswerSerializer(many=True, read_only=True)
 
     class Meta:
         model = QuizAttempt
         fields = [
             "id",
+            "user_attempt_number",
             "document",
             "document_file",
+            "user_document_number",
             "score",
             "total_questions",
             "completed_at",
@@ -71,31 +75,67 @@ class QuizAttemptSerializer(serializers.ModelSerializer):
             return obj.document.file.url
         return None
 
+    def get_user_document_number(self, obj):
+        if not obj.document:
+            return None
+
+        return (
+            Document.objects
+            .filter(user=obj.document.user, id__lte=obj.document.id)
+            .count()
+        )
+
+    def get_user_attempt_number(self, obj):
+        return (
+            QuizAttempt.objects
+            .filter(user=obj.user, id__lte=obj.id)
+            .count()
+        )
+
 
 class DocumentListSerializer(serializers.ModelSerializer):
+    user_document_number = serializers.SerializerMethodField()
+
     class Meta:
         model = Document
         fields = [
             "id",
+            "user_document_number",
             "file",
             "uploaded_at"
         ]
+
+    def get_user_document_number(self, obj):
+        return (
+            Document.objects
+            .filter(user=obj.user, id__lte=obj.id)
+            .count()
+        )
 
 
 class DocumentDetailSerializer(serializers.ModelSerializer):
     definitions = ExtractedDefinitionSerializer(many=True, read_only=True)
     generated_questions = GeneratedQuestionSerializer(many=True, read_only=True)
+    user_document_number = serializers.SerializerMethodField()
 
     class Meta:
         model = Document
         fields = [
             "id",
+            "user_document_number",
             "file",
             "extracted_text",
             "uploaded_at",
             "definitions",
             "generated_questions"
         ]
+
+    def get_user_document_number(self, obj):
+        return (
+            Document.objects
+            .filter(user=obj.user, id__lte=obj.id)
+            .count()
+        )
 
 
 class SubmitQuizAnswerInputSerializer(serializers.Serializer):
@@ -118,7 +158,9 @@ class SubmitQuizResultItemSerializer(serializers.Serializer):
 
 class SubmitQuizResponseSerializer(serializers.Serializer):
     attempt_id = serializers.IntegerField()
+    user_attempt_number = serializers.IntegerField()
     document_id = serializers.IntegerField()
+    user_document_number = serializers.IntegerField()
     score = serializers.IntegerField()
     total_questions = serializers.IntegerField()
     results = SubmitQuizResultItemSerializer(many=True)

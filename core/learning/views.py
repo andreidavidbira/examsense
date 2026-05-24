@@ -1,17 +1,37 @@
 from django.db.models import Avg, Max, Min, Count
-from django.db.models.functions import Coalesce
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
-from documents.models import QuizAttempt, QuizAnswer, GeneratedQuestion
+from documents.models import QuizAttempt, QuizAnswer, GeneratedQuestion, Document
 from .serializers import (
     LearningDashboardSerializer,
     WeakConceptSerializer,
     RecommendationSerializer,
     RetryQuizResponseSerializer
 )
+
+
+def get_user_document_number(user, document_id):
+    try:
+        document_obj = Document.objects.get(id=document_id, user=user)
+    except Document.DoesNotExist:
+        return None
+
+    return (
+        Document.objects
+        .filter(user=user, id__lte=document_obj.id)
+        .count()
+    )
+
+
+def get_user_attempt_number(user, attempt_id):
+    return (
+        QuizAttempt.objects
+        .filter(user=user, id__lte=attempt_id)
+        .count()
+    )
 
 
 def build_weak_concepts(user, limit=10):
@@ -36,14 +56,19 @@ def build_weak_concepts(user, limit=10):
         if not concept:
             continue
 
+        document_id = item["question__document__id"]
         document_file = item["question__document__file"]
-        document_file_value = str(document_file) if document_file else None
+
+        user_document_number = None
+        if document_id:
+            user_document_number = get_user_document_number(user, document_id)
 
         results.append({
             "concept": concept,
             "wrong_count": item["wrong_count"],
-            "document_id": item["question__document__id"],
-            "document_file": f"/media/{document_file_value}" if document_file_value else None
+            "document_id": document_id,
+            "document_file": f"/media/{document_file}" if document_file else None,
+            "user_document_number": user_document_number,
         })
 
         if len(results) >= limit:
@@ -71,9 +96,14 @@ class LearningDashboardView(APIView):
 
         recent_attempts = []
         for attempt in attempts[:5]:
+            user_document_number = get_user_document_number(request.user, attempt.document.id)
+            user_attempt_number = get_user_attempt_number(request.user, attempt.id)
+
             recent_attempts.append({
                 "attempt_id": attempt.id,
+                "user_attempt_number": user_attempt_number,
                 "document_id": attempt.document.id,
+                "user_document_number": user_document_number,
                 "document_file": attempt.document.file.url if attempt.document.file else None,
                 "score": attempt.score,
                 "total_questions": attempt.total_questions,
@@ -130,7 +160,8 @@ class RecommendationsView(APIView):
                 "wrong_count": wrong_count,
                 "recommendation": recommendation_text,
                 "document_id": item.get("document_id"),
-                "document_file": item.get("document_file")
+                "document_file": item.get("document_file"),
+                "user_document_number": item.get("user_document_number"),
             })
 
         serializer = RecommendationSerializer(recommendations, many=True)
