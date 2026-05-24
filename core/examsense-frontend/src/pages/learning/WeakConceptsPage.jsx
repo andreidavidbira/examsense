@@ -1,14 +1,19 @@
 import { useEffect, useState } from 'react'
+
 import api from '../../api/axios'
+import EmptyState from '../../components/common/EmptyState'
 import PageContainer from '../../components/common/PageContainer'
 import SectionCard from '../../components/common/SectionCard'
-import EmptyState from '../../components/common/EmptyState'
+import usePageTitle from '../../hooks/usePageTitle'
 
 export default function WeakConceptsPage() {
+  usePageTitle('Concepte slabe')
+
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
 
   useEffect(() => {
+    // incarcam conceptele la care utilizatorul a gresit cel mai des
     async function fetchWeakConcepts() {
       try {
         const response = await api.get('/learning/weak-concepts/')
@@ -58,9 +63,7 @@ export default function WeakConceptsPage() {
                 className="rounded-2xl border border-slate-200 bg-white p-4"
               >
                 <p className="text-lg font-semibold text-slate-950">{item.concept}</p>
-                <p className="mt-2 text-sm text-slate-500">
-                  Greșit de {item.wrong_count} ori
-                </p>
+                <p className="mt-2 text-sm text-slate-500">Greșit de {item.wrong_count} ori</p>
 
                 {item.document_id && (
                   <p className="mt-2 text-xs text-slate-400">

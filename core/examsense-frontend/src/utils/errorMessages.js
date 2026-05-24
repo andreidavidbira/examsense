@@ -1,3 +1,4 @@
+// transformam numele tehnic al campului intr-un text mai prietenos pentru UI
 function humanizeFieldName(field) {
   const fieldMap = {
     username: 'Username',
@@ -19,6 +20,7 @@ function humanizeFieldName(field) {
   return fieldMap[field] || field.replaceAll('_', ' ')
 }
 
+// transformam mesajele brute venite din backend in texte mai usor de inteles
 function humanizeMessage(message) {
   if (!message || typeof message !== 'string') {
     return 'Valoare invalidă.'
@@ -61,6 +63,7 @@ function humanizeMessage(message) {
   return message
 }
 
+// extragem toate mesajele de eroare relevante din raspunsul API
 export function getApiErrorMessages(error, fallback = 'A apărut o eroare neașteptată.') {
   const data = error?.response?.data
 
@@ -107,6 +110,7 @@ export function getApiErrorMessages(error, fallback = 'A apărut o eroare neașt
   return [fallback]
 }
 
+// cand avem nevoie de un singur text, unim toate mesajele intr-un sir
 export function getApiErrorMessage(error, fallback = 'A apărut o eroare neașteptată.') {
   return getApiErrorMessages(error, fallback).join(' ')
 }

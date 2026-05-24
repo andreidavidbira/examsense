@@ -5,27 +5,30 @@ import {
   BookOpenCheck,
   BrainCircuit,
   FileText,
-  LogOut,
-  UserCircle2,
   History,
-  Sparkles,
+  LogOut,
   Menu,
-  X,
   Shield,
+  Sparkles,
+  UserCircle2,
+  X,
 } from 'lucide-react'
+
+import ConfirmDialog from '../common/ConfirmDialog'
+import MobileMenu from './MobileMenu'
 import { useAuth } from '../../hooks/useAuth'
 import { useToast } from '../../hooks/useToast'
-import MobileMenu from './MobileMenu'
-import ConfirmDialog from '../common/ConfirmDialog'
 import { secondaryButtonClass } from '../../utils/buttonClasses'
 
 export default function Navbar() {
   const { user, isAuthenticated, logout } = useAuth()
   const { showToast } = useToast()
   const navigate = useNavigate()
+
   const [mobileOpen, setMobileOpen] = useState(false)
   const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false)
 
+  // definim linkurile principale afisate in meniu
   const navItems = [
     { to: '/documents', label: 'Documente', icon: FileText },
     { to: '/dashboard', label: 'Progres', icon: BrainCircuit },
@@ -34,10 +37,12 @@ export default function Navbar() {
     { to: '/profile', label: 'Profil', icon: UserCircle2 },
   ]
 
+  // daca utilizatorul este admin, afisam si accesul catre panoul special
   if (user?.is_staff) {
     navItems.push({ to: '/admin-panel', label: 'Admin', icon: Shield })
   }
 
+  // confirmam logout-ul si inchidem meniurile deschise
   async function handleLogoutConfirmed() {
     await logout()
     setMobileOpen(false)
@@ -64,7 +69,7 @@ export default function Navbar() {
           <Link to="/" className="flex items-center gap-3">
             <motion.div
               whileHover={{ scale: 1.04 }}
-              className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 via-violet-500 to-sky-500 text-white shadow-lg"
+              className="flex h-11 w-11 items-center justify-center rounded-2xl bg-linear-to-br from-brand-500 via-violet-500 to-sky-500 text-white shadow-lg"
             >
               <BookOpenCheck size={22} />
             </motion.div>
@@ -114,6 +119,7 @@ export default function Navbar() {
                   Logout
                 </button>
 
+                {/* pe mobil deschidem sau inchidem meniul lateral */}
                 <button
                   onClick={() => setMobileOpen((prev) => !prev)}
                   className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 xl:hidden"

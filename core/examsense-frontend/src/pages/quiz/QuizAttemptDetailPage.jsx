@@ -1,14 +1,21 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+
 import api from '../../api/axios'
-import PageContainer from '../../components/common/PageContainer'
-import SectionCard from '../../components/common/SectionCard'
 import EmptyState from '../../components/common/EmptyState'
+import PageContainer from '../../components/common/PageContainer'
 import QuizOptionsDialog from '../../components/common/QuizOptionsDialog'
+import SectionCard from '../../components/common/SectionCard'
 import { useToast } from '../../hooks/useToast'
-import { primaryButtonClass, secondaryButtonClass } from '../../utils/buttonClasses'
+import usePageTitle from '../../hooks/usePageTitle'
+import {
+  primaryButtonClass,
+  secondaryButtonClass,
+} from '../../utils/buttonClasses'
 
 export default function QuizAttemptDetailPage() {
+  usePageTitle('Detalii încercare quiz')
+
   const { attemptId } = useParams()
   const navigate = useNavigate()
   const { showToast } = useToast()
@@ -19,6 +26,7 @@ export default function QuizAttemptDetailPage() {
   const [isGenerating, setIsGenerating] = useState(false)
 
   useEffect(() => {
+    // incarcam toate detaliile pentru attemptul selectat
     async function fetchAttempt() {
       try {
         const response = await api.get(`/documents/quiz-history/${attemptId}/`)
@@ -31,11 +39,13 @@ export default function QuizAttemptDetailPage() {
     fetchAttempt()
   }, [attemptId])
 
+  // reluam exact quiz-ul deja generat pentru documentul acestui attempt
   function handleReplaySameQuiz() {
     if (!data) return
     navigate(`/documents/${data.document}/quiz`)
   }
 
+  // generam un nou set de intrebari pentru documentul asociat attemptului
   async function handleGenerateNewQuiz(options) {
     if (!data) return
 
@@ -99,7 +109,10 @@ export default function QuizAttemptDetailPage() {
               <button onClick={handleReplaySameQuiz} className={secondaryButtonClass}>
                 Reia același quiz
               </button>
-              <button onClick={() => setQuizOptionsOpen(true)} className={primaryButtonClass}>
+              <button
+                onClick={() => setQuizOptionsOpen(true)}
+                className={primaryButtonClass}
+              >
                 Quiz nou
               </button>
               <Link to="/quiz-history" className={secondaryButtonClass}>

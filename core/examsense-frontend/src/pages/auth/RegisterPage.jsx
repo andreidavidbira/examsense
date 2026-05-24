@@ -1,22 +1,26 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
+
+import ErrorAlert from '../../components/common/ErrorAlert'
 import PageContainer from '../../components/common/PageContainer'
 import SectionCard from '../../components/common/SectionCard'
-import ErrorAlert from '../../components/common/ErrorAlert'
 import { useAuth } from '../../hooks/useAuth'
 import { useToast } from '../../hooks/useToast'
-import { getApiErrorMessages } from '../../utils/errorMessages'
+import usePageTitle from '../../hooks/usePageTitle'
 import { primaryButtonClass } from '../../utils/buttonClasses'
+import { getApiErrorMessages } from '../../utils/errorMessages'
 import {
   validateEmail,
-  validateStrongPassword,
   validatePasswordMatch,
-  validateUsername,
   validateRequiredText,
+  validateStrongPassword,
+  validateUsername,
 } from '../../utils/validators'
 
 export default function RegisterPage() {
+  usePageTitle('Register')
+
   const navigate = useNavigate()
   const { register } = useAuth()
   const { showToast } = useToast()
@@ -36,6 +40,7 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false)
 
+  // validam live toate campurile importante din formular
   const liveErrors = useMemo(() => {
     return {
       username: validateUsername(form.username),
@@ -43,12 +48,16 @@ export default function RegisterPage() {
       first_name: validateRequiredText(form.first_name, 'Prenumele'),
       last_name: validateRequiredText(form.last_name, 'Numele'),
       password: validateStrongPassword(form.password),
-      password_confirm: validatePasswordMatch(form.password, form.password_confirm),
+      password_confirm: validatePasswordMatch(
+        form.password,
+        form.password_confirm
+      ),
     }
   }, [form])
 
   const hasLiveErrors = Object.values(liveErrors).some(Boolean)
 
+  // actualizam campul modificat in formular
   function handleChange(e) {
     setForm((prev) => ({
       ...prev,
@@ -56,6 +65,7 @@ export default function RegisterPage() {
     }))
   }
 
+  // marcam un camp ca fiind atins pentru afisarea erorilor
   function handleBlur(e) {
     setTouched((prev) => ({
       ...prev,
@@ -67,6 +77,7 @@ export default function RegisterPage() {
     return touched[name] ? liveErrors[name] : ''
   }
 
+  // trimitem formularul doar daca toate validarile au trecut
   async function handleSubmit(e) {
     e.preventDefault()
     setErrors([])
@@ -91,7 +102,10 @@ export default function RegisterPage() {
       showToast('Cont creat cu succes. Te poți autentifica acum.', 'success')
       navigate('/login')
     } catch (err) {
-      const parsedErrors = getApiErrorMessages(err, 'Înregistrarea a eșuat. Verifică datele.')
+      const parsedErrors = getApiErrorMessages(
+        err,
+        'Înregistrarea a eșuat. Verifică datele.'
+      )
       setErrors(parsedErrors)
       showToast('Înregistrarea a eșuat.', 'error')
     } finally {
@@ -108,7 +122,9 @@ export default function RegisterPage() {
         >
           <form onSubmit={handleSubmit} className="grid gap-5 sm:grid-cols-2">
             <div className="sm:col-span-2">
-              <label className="mb-2 block text-sm font-medium text-slate-700">Username</label>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Username
+              </label>
               <input
                 name="username"
                 value={form.username}
@@ -128,7 +144,9 @@ export default function RegisterPage() {
             </div>
 
             <div className="sm:col-span-2">
-              <label className="mb-2 block text-sm font-medium text-slate-700">Email</label>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Email
+              </label>
               <input
                 type="email"
                 name="email"
@@ -149,7 +167,9 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Prenume</label>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Prenume
+              </label>
               <input
                 name="first_name"
                 value={form.first_name}
@@ -165,7 +185,9 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Nume</label>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Nume
+              </label>
               <input
                 name="last_name"
                 value={form.last_name}
@@ -181,7 +203,9 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Parolă</label>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Parolă
+              </label>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -211,7 +235,9 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Confirmă parola</label>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Confirmă parola
+              </label>
               <div className="relative">
                 <input
                   type={showPasswordConfirm ? 'text' : 'password'}
@@ -232,7 +258,9 @@ export default function RegisterPage() {
                 </button>
               </div>
               {fieldError('password_confirm') && (
-                <p className="mt-2 text-xs text-rose-600">{fieldError('password_confirm')}</p>
+                <p className="mt-2 text-xs text-rose-600">
+                  {fieldError('password_confirm')}
+                </p>
               )}
             </div>
 

@@ -1,45 +1,46 @@
-import { Routes, Route } from 'react-router-dom'
-import AppShell from '../components/layout/AppShell'
-import ProtectedRoute from '../components/layout/ProtectedRoute'
-import ProtectedAdminRoute from '../components/layout/ProtectedAdminRoute'
+import { Route, Routes } from 'react-router-dom'
 
+import AppShell from '../components/layout/AppShell'
+import ProtectedAdminRoute from '../components/layout/ProtectedAdminRoute'
+import ProtectedRoute from '../components/layout/ProtectedRoute'
+
+import AdminDashboardPage from '../pages/admin/AdminDashboardPage'
 import HomePage from '../pages/HomePage'
 import NotFoundPage from '../pages/NotFoundPage'
 
-import LoginPage from '../pages/auth/LoginPage'
-import RegisterPage from '../pages/auth/RegisterPage'
-import ProfilePage from '../pages/auth/ProfilePage'
 import ChangePasswordPage from '../pages/auth/ChangePasswordPage'
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage'
+import LoginPage from '../pages/auth/LoginPage'
+import ProfilePage from '../pages/auth/ProfilePage'
+import RegisterPage from '../pages/auth/RegisterPage'
 import ResetPasswordPage from '../pages/auth/ResetPasswordPage'
 
+import DocumentDetailPage from '../pages/documents/DocumentDetailPage'
 import DocumentsPage from '../pages/documents/DocumentsPage'
 import UploadPage from '../pages/documents/UploadPage'
-import DocumentDetailPage from '../pages/documents/DocumentDetailPage'
 
 import DashboardPage from '../pages/learning/DashboardPage'
-import WeakConceptsPage from '../pages/learning/WeakConceptsPage'
 import RecommendationsPage from '../pages/learning/RecommendationsPage'
 import RetryQuizPage from '../pages/learning/RetryQuizPage'
+import WeakConceptsPage from '../pages/learning/WeakConceptsPage'
 
+import QuizAttemptDetailPage from '../pages/quiz/QuizAttemptDetailPage'
+import QuizHistoryPage from '../pages/quiz/QuizHistoryPage'
 import QuizPlayPage from '../pages/quiz/QuizPlayPage'
 import QuizResultPage from '../pages/quiz/QuizResultPage'
-import QuizHistoryPage from '../pages/quiz/QuizHistoryPage'
-import QuizAttemptDetailPage from '../pages/quiz/QuizAttemptDetailPage'
-
-import AdminDashboardPage from '../pages/admin/AdminDashboardPage'
 
 export default function AppRouter() {
   return (
     <AppShell>
       <Routes>
+        {/* rute publice */}
         <Route path="/" element={<HomePage />} />
-
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
 
+        {/* rute protejate pentru utilizatori autentificati */}
         <Route
           path="/profile"
           element={
@@ -148,6 +149,7 @@ export default function AppRouter() {
           }
         />
 
+        {/* ruta speciala pentru admin */}
         <Route
           path="/admin-panel"
           element={
@@ -157,6 +159,7 @@ export default function AppRouter() {
           }
         />
 
+        {/* fallback pentru rute inexistente */}
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </AppShell>

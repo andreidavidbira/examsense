@@ -1,20 +1,27 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+
 import api from '../../api/axios'
-import { useAuth } from '../../hooks/useAuth'
-import { useToast } from '../../hooks/useToast'
+import ErrorAlert from '../../components/common/ErrorAlert'
 import PageContainer from '../../components/common/PageContainer'
 import SectionCard from '../../components/common/SectionCard'
-import ErrorAlert from '../../components/common/ErrorAlert'
+import { useAuth } from '../../hooks/useAuth'
+import { useToast } from '../../hooks/useToast'
+import usePageTitle from '../../hooks/usePageTitle'
+import {
+  primaryButtonClass,
+  secondaryButtonClass,
+} from '../../utils/buttonClasses'
 import { getApiErrorMessages } from '../../utils/errorMessages'
-import { primaryButtonClass, secondaryButtonClass } from '../../utils/buttonClasses'
 import {
   validateEmail,
-  validateUsername,
   validateRequiredText,
+  validateUsername,
 } from '../../utils/validators'
 
 export default function ProfilePage() {
+  usePageTitle('Profilul meu')
+
   const { user, refreshProfile } = useAuth()
   const { showToast } = useToast()
 
@@ -30,6 +37,7 @@ export default function ProfilePage() {
   const [errors, setErrors] = useState([])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // cand primim datele utilizatorului, le copiem in formular
   useEffect(() => {
     if (user) {
       setForm({
@@ -41,6 +49,7 @@ export default function ProfilePage() {
     }
   }, [user])
 
+  // validam live campurile principale ale profilului
   const liveErrors = useMemo(() => {
     return {
       username: validateUsername(form.username),
@@ -52,6 +61,7 @@ export default function ProfilePage() {
 
   const hasLiveErrors = Object.values(liveErrors).some(Boolean)
 
+  // actualizam campul modificat in formular
   function handleChange(e) {
     setForm((prev) => ({
       ...prev,
@@ -59,6 +69,7 @@ export default function ProfilePage() {
     }))
   }
 
+  // marcam un camp ca fiind atins pentru afisarea erorilor
   function handleBlur(e) {
     setTouched((prev) => ({
       ...prev,
@@ -70,6 +81,7 @@ export default function ProfilePage() {
     return touched[name] ? liveErrors[name] : ''
   }
 
+  // trimitem modificarile catre backend si reincarcam profilul din context
   async function handleSubmit(e) {
     e.preventDefault()
     setMessage('')
@@ -95,7 +107,10 @@ export default function ProfilePage() {
       setMessage('Profil actualizat cu succes.')
       showToast('Profil actualizat cu succes.', 'success')
     } catch (err) {
-      const parsedErrors = getApiErrorMessages(err, 'Actualizarea profilului a eșuat.')
+      const parsedErrors = getApiErrorMessages(
+        err,
+        'Actualizarea profilului a eșuat.'
+      )
       setErrors(parsedErrors)
       showToast('Actualizarea profilului a eșuat.', 'error')
     } finally {

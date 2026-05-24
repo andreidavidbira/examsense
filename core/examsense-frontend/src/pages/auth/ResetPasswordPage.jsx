@@ -1,20 +1,28 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
+
 import api from '../../api/axios'
+import ErrorAlert from '../../components/common/ErrorAlert'
 import PageContainer from '../../components/common/PageContainer'
 import SectionCard from '../../components/common/SectionCard'
-import ErrorAlert from '../../components/common/ErrorAlert'
 import { useToast } from '../../hooks/useToast'
-import { getApiErrorMessages } from '../../utils/errorMessages'
+import usePageTitle from '../../hooks/usePageTitle'
 import { primaryButtonClass } from '../../utils/buttonClasses'
-import { validateStrongPassword, validatePasswordMatch } from '../../utils/validators'
+import { getApiErrorMessages } from '../../utils/errorMessages'
+import {
+  validatePasswordMatch,
+  validateStrongPassword,
+} from '../../utils/validators'
 
 export default function ResetPasswordPage() {
+  usePageTitle('Resetare parolă')
+
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { showToast } = useToast()
 
+  // luam uid-ul si tokenul din parametrii din linkul de resetare
   const uid = useMemo(() => searchParams.get('uid') || '', [searchParams])
   const token = useMemo(() => searchParams.get('token') || '', [searchParams])
 
@@ -29,15 +37,20 @@ export default function ResetPasswordPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false)
 
+  // validam live parola noua si confirmarea ei
   const liveErrors = useMemo(() => {
     return {
       new_password: validateStrongPassword(form.new_password),
-      new_password_confirm: validatePasswordMatch(form.new_password, form.new_password_confirm),
+      new_password_confirm: validatePasswordMatch(
+        form.new_password,
+        form.new_password_confirm
+      ),
     }
   }, [form])
 
   const hasLiveErrors = Object.values(liveErrors).some(Boolean)
 
+  // actualizam campul modificat in formular
   function handleChange(e) {
     setForm((prev) => ({
       ...prev,
@@ -45,6 +58,7 @@ export default function ResetPasswordPage() {
     }))
   }
 
+  // marcam un camp ca fiind atins pentru afisarea erorilor
   function handleBlur(e) {
     setTouched((prev) => ({
       ...prev,
@@ -56,6 +70,7 @@ export default function ResetPasswordPage() {
     return touched[name] ? liveErrors[name] : ''
   }
 
+  // trimitem parola noua catre backend impreuna cu uid-ul si tokenul
   async function handleSubmit(e) {
     e.preventDefault()
     setMessage('')
@@ -101,7 +116,9 @@ export default function ResetPasswordPage() {
         >
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Parolă nouă</label>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Parolă nouă
+              </label>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -126,7 +143,9 @@ export default function ResetPasswordPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Confirmă parola nouă</label>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Confirmă parola nouă
+              </label>
               <div className="relative">
                 <input
                   type={showPasswordConfirm ? 'text' : 'password'}
@@ -146,7 +165,9 @@ export default function ResetPasswordPage() {
                 </button>
               </div>
               {fieldError('new_password_confirm') && (
-                <p className="mt-2 text-xs text-rose-600">{fieldError('new_password_confirm')}</p>
+                <p className="mt-2 text-xs text-rose-600">
+                  {fieldError('new_password_confirm')}
+                </p>
               )}
             </div>
 

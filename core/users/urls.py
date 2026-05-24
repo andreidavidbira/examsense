@@ -1,18 +1,20 @@
 from django.urls import path
 
 from .views import (
+    ChangePasswordView,
     CsrfCookieView,
-    RegisterView,
+    ForgotPasswordRequestView,
     LoginView,
-    RefreshCookieTokenView,
     LogoutView,
     MeView,
-    UpdateProfileView,
-    ChangePasswordView,
-    ForgotPasswordRequestView,
+    RefreshCookieTokenView,
+    RegisterView,
     ResetPasswordView,
+    UpdateProfileView,
 )
 
+
+# aici definim toate rutele pentru autentificare si gestionarea contului
 urlpatterns = [
     path("csrf/", CsrfCookieView.as_view()),
     path("register/", RegisterView.as_view()),

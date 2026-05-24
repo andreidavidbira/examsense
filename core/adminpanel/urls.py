@@ -9,6 +9,7 @@ from .views import (
     AdminDeleteDocumentView,
 )
 
+# aici definim toate rutele disponibile pentru panoul de admin
 urlpatterns = [
     path("overview/", AdminOverviewView.as_view()),
     path("users/", AdminUsersListView.as_view()),

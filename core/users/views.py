@@ -1,32 +1,31 @@
 from django.conf import settings
-from django.contrib.auth import get_user_model, authenticate
+from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.core.mail import send_mail
 from django.utils.decorators import method_decorator
-from django.utils.encoding import force_str
+from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
-from django.utils.encoding import force_bytes
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 
-from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.views import APIView
 
-from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
+from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 
 from .serializers import (
-    RegisterSerializer,
-    UserSerializer,
-    UpdateProfileSerializer,
     ChangePasswordSerializer,
     ForgotPasswordRequestSerializer,
-    ResetPasswordSerializer
+    RegisterSerializer,
+    ResetPasswordSerializer,
+    UpdateProfileSerializer,
+    UserSerializer,
 )
 from .throttles import (
     LoginRateThrottle,
+    PasswordChangeRateThrottle,
     RegisterRateThrottle,
-    PasswordChangeRateThrottle
 )
 
 
@@ -34,6 +33,7 @@ User = get_user_model()
 password_reset_token_generator = PasswordResetTokenGenerator()
 
 
+# setam cookie-urile de autentificare dupa login sau refresh
 def set_auth_cookies(response, access_token=None, refresh_token=None):
     common_kwargs = {
         "httponly": True,
@@ -47,7 +47,7 @@ def set_auth_cookies(response, access_token=None, refresh_token=None):
             key=settings.AUTH_COOKIE_ACCESS,
             value=access_token,
             max_age=int(settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds()),
-            **common_kwargs
+            **common_kwargs,
         )
 
     if refresh_token:
@@ -55,10 +55,11 @@ def set_auth_cookies(response, access_token=None, refresh_token=None):
             key=settings.AUTH_COOKIE_REFRESH,
             value=refresh_token,
             max_age=int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds()),
-            **common_kwargs
+            **common_kwargs,
         )
 
 
+# stergem cookie-urile de autentificare la logout sau dupa schimbarea parolei
 def clear_auth_cookies(response):
     response.delete_cookie(settings.AUTH_COOKIE_ACCESS, path=settings.AUTH_COOKIE_PATH)
     response.delete_cookie(settings.AUTH_COOKIE_REFRESH, path=settings.AUTH_COOKIE_PATH)
@@ -68,6 +69,7 @@ def clear_auth_cookies(response):
 class CsrfCookieView(APIView):
     permission_classes = [AllowAny]
 
+    # setam cookie-ul csrf pentru frontend
     def get(self, request):
         return Response({"message": "CSRF cookie set."}, status=200)
 
@@ -77,6 +79,7 @@ class RegisterView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [RegisterRateThrottle]
 
+    # cream un cont nou daca datele trimise sunt valide
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
 
@@ -92,6 +95,7 @@ class LoginView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [LoginRateThrottle]
 
+    # autentificam utilizatorul si salvam tokenurile in cookie
     def post(self, request):
         username = request.data.get("username")
         password = request.data.get("password")
@@ -113,13 +117,13 @@ class LoginView(APIView):
 
         response = Response({
             "message": "Login successful.",
-            "user": UserSerializer(user).data
+            "user": UserSerializer(user).data,
         }, status=200)
 
         set_auth_cookies(
             response,
             access_token=access_token,
-            refresh_token=refresh_token
+            refresh_token=refresh_token,
         )
 
         return response
@@ -129,6 +133,7 @@ class LoginView(APIView):
 class RefreshCookieTokenView(APIView):
     permission_classes = [AllowAny]
 
+    # generam un nou access token pe baza refresh tokenului din cookie
     def post(self, request):
         refresh_token = request.COOKIES.get(settings.AUTH_COOKIE_REFRESH)
 
@@ -144,10 +149,11 @@ class RefreshCookieTokenView(APIView):
         new_refresh_token = serializer.validated_data.get("refresh")
 
         response = Response({"message": "Token refreshed."}, status=200)
+
         set_auth_cookies(
             response,
             access_token=access_token,
-            refresh_token=new_refresh_token
+            refresh_token=new_refresh_token,
         )
 
         return response
@@ -156,6 +162,7 @@ class RefreshCookieTokenView(APIView):
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
+    # facem logout si invalidam refresh tokenul curent daca exista
     def post(self, request):
         refresh_token = request.COOKIES.get(settings.AUTH_COOKIE_REFRESH)
 
@@ -176,6 +183,7 @@ class LogoutView(APIView):
 class MeView(APIView):
     permission_classes = [IsAuthenticated]
 
+    # returnam datele utilizatorului autentificat
     def get(self, request):
         serializer = UserSerializer(request.user)
         return Response(serializer.data)
@@ -184,10 +192,11 @@ class MeView(APIView):
 class UpdateProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
+    # actualizam toate datele principale ale profilului
     def put(self, request):
         serializer = UpdateProfileSerializer(
             request.user,
-            data=request.data
+            data=request.data,
         )
 
         if serializer.is_valid():
@@ -196,11 +205,12 @@ class UpdateProfileView(APIView):
 
         return Response(serializer.errors, status=400)
 
+    # permitem si actualizarea partiala a profilului
     def patch(self, request):
         serializer = UpdateProfileSerializer(
             request.user,
             data=request.data,
-            partial=True
+            partial=True,
         )
 
         if serializer.is_valid():
@@ -214,6 +224,7 @@ class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
     throttle_classes = [PasswordChangeRateThrottle]
 
+    # schimbam parola si fortam reautentificarea utilizatorului
     def post(self, request):
         serializer = ChangePasswordSerializer(data=request.data)
 
@@ -227,7 +238,7 @@ class ChangePasswordView(APIView):
         if not user.check_password(old_password):
             return Response(
                 {"old_password": ["Parola veche este incorecta."]},
-                status=400
+                status=400,
             )
 
         refresh_token = request.COOKIES.get(settings.AUTH_COOKIE_REFRESH)
@@ -244,7 +255,7 @@ class ChangePasswordView(APIView):
 
         response = Response({
             "message": "Parola a fost schimbata cu succes. Autentifica-te din nou.",
-            "logout_required": True
+            "logout_required": True,
         }, status=200)
 
         clear_auth_cookies(response)
@@ -256,6 +267,7 @@ class ForgotPasswordRequestView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [RegisterRateThrottle]
 
+    # trimitem linkul de resetare daca exista un cont cu emailul respectiv
     def post(self, request):
         serializer = ForgotPasswordRequestSerializer(data=request.data)
 
@@ -283,7 +295,7 @@ class ForgotPasswordRequestView(APIView):
             )
 
         return Response({
-            "message": "Dacă există un cont cu acest email, a fost trimis un link de resetare."
+            "message": "Dacă există un cont cu acest email, a fost trimis un link de resetare.",
         }, status=200)
 
 
@@ -291,6 +303,7 @@ class ForgotPasswordRequestView(APIView):
 class ResetPasswordView(APIView):
     permission_classes = [AllowAny]
 
+    # resetam parola pe baza tokenului primit prin email
     def post(self, request):
         serializer = ResetPasswordSerializer(data=request.data)
 

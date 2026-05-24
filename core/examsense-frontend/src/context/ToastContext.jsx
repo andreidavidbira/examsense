@@ -8,10 +8,12 @@ let idCounter = 1
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([])
 
+  // stergem un toast dupa id
   const removeToast = useCallback((id) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id))
   }, [])
 
+  // adaugam un toast nou si il inchidem automat dupa cateva secunde
   const showToast = useCallback((message, type = 'info') => {
     const id = idCounter++
     setToasts((prev) => [...prev, { id, message, type }])
@@ -21,6 +23,7 @@ export function ToastProvider({ children }) {
     }, 3500)
   }, [removeToast])
 
+  // expunem functiile de toast pentru restul aplicatiei
   const value = useMemo(
     () => ({ showToast, removeToast }),
     [showToast, removeToast]
@@ -30,11 +33,11 @@ export function ToastProvider({ children }) {
     <ToastContext.Provider value={value}>
       {children}
 
-      <div className="pointer-events-none fixed left-1/2 top-20 z-[120] flex w-[calc(100%-1rem)] max-w-md -translate-x-1/2 flex-col gap-3 sm:left-auto sm:right-4 sm:top-4 sm:w-full sm:translate-x-0">
+      <div className="pointer-events-none fixed left-1/2 top-20 z-120 flex w-[calc(100%-1rem)] max-w-md -translate-x-1/2 flex-col gap-3 sm:left-auto sm:right-4 sm:top-4 sm:w-full sm:translate-x-0">
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto rounded-2xl border px-4 py-3 shadow-[var(--shadow-card)] backdrop-blur-xl ${
+            className={`pointer-events-auto rounded-2xl border px-4 py-3 shadow-(--shadow-card) backdrop-blur-xl ${
               toast.type === 'success'
                 ? 'border-emerald-200 bg-emerald-50/95 text-emerald-800'
                 : toast.type === 'error'

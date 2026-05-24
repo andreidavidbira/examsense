@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { primaryButtonClass, secondaryButtonClass } from '../../utils/buttonClasses'
+import { AnimatePresence, motion } from 'framer-motion'
 
+import {
+  primaryButtonClass,
+  secondaryButtonClass,
+} from '../../utils/buttonClasses'
+
+// dialogul ne lasa sa alegem dificultatea si numarul de intrebari pentru un quiz nou
 export default function QuizOptionsDialog({
   open,
   title = 'Configurează quiz-ul',
@@ -18,6 +23,7 @@ export default function QuizOptionsDialog({
   const [maxQuestions, setMaxQuestions] = useState(initialMaxQuestions)
   const [errors, setErrors] = useState({})
 
+  // cand deschidem dialogul, resetam valorile si erorile
   useEffect(() => {
     if (open) {
       setDifficulty(initialDifficulty)
@@ -26,6 +32,7 @@ export default function QuizOptionsDialog({
     }
   }, [open, initialDifficulty, initialMaxQuestions])
 
+  // validam optiunile selectate inainte de confirmare
   function validate() {
     const newErrors = {}
 
@@ -47,6 +54,7 @@ export default function QuizOptionsDialog({
     return Object.keys(newErrors).length === 0
   }
 
+  // trimitem mai departe optiunile doar daca validarea a trecut
   function handleConfirm() {
     if (!validate()) {
       return
@@ -63,7 +71,7 @@ export default function QuizOptionsDialog({
       {open && (
         <>
           <motion.div
-            className="fixed inset-0 z-[90] bg-slate-950/35 backdrop-blur-sm"
+            className="fixed inset-0 z-90 bg-slate-950/35 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -71,7 +79,7 @@ export default function QuizOptionsDialog({
           />
 
           <motion.div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+            className="fixed inset-0 z-100 flex items-center justify-center p-4"
             initial={{ opacity: 0, scale: 0.96, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 10 }}
@@ -121,7 +129,11 @@ export default function QuizOptionsDialog({
                 <button onClick={onCancel} className={secondaryButtonClass}>
                   {cancelText}
                 </button>
-                <button onClick={handleConfirm} className={primaryButtonClass} disabled={isSubmitting}>
+                <button
+                  onClick={handleConfirm}
+                  className={primaryButtonClass}
+                  disabled={isSubmitting}
+                >
                   {isSubmitting ? 'Se generează...' : confirmText}
                 </button>
               </div>

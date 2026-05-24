@@ -1,18 +1,26 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+
 import api from '../../api/axios'
-import PageContainer from '../../components/common/PageContainer'
-import SectionCard from '../../components/common/SectionCard'
+import ConfirmDialog from '../../components/common/ConfirmDialog'
 import EmptyState from '../../components/common/EmptyState'
 import ErrorAlert from '../../components/common/ErrorAlert'
-import ConfirmDialog from '../../components/common/ConfirmDialog'
-import QuizOptionsDialog from '../../components/common/QuizOptionsDialog'
 import PageLoader from '../../components/common/PageLoader'
+import PageContainer from '../../components/common/PageContainer'
+import QuizOptionsDialog from '../../components/common/QuizOptionsDialog'
+import SectionCard from '../../components/common/SectionCard'
 import { useToast } from '../../hooks/useToast'
-import { primaryButtonClass, secondaryButtonClass, dangerButtonClass } from '../../utils/buttonClasses'
+import usePageTitle from '../../hooks/usePageTitle'
+import {
+  dangerButtonClass,
+  primaryButtonClass,
+  secondaryButtonClass,
+} from '../../utils/buttonClasses'
 import { getDisplayFileName } from '../../utils/fileHelpers'
 
 export default function DocumentDetailPage() {
+  usePageTitle('Detalii document')
+
   const { id } = useParams()
   const navigate = useNavigate()
   const { showToast } = useToast()
@@ -25,6 +33,7 @@ export default function DocumentDetailPage() {
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false)
 
   useEffect(() => {
+    // incarcam toate detaliile documentului selectat
     async function fetchDocument() {
       try {
         const response = await api.get(`/documents/${id}/`)
@@ -39,6 +48,7 @@ export default function DocumentDetailPage() {
     fetchDocument()
   }, [id])
 
+  // stergem documentul dupa confirmare si revenim la lista
   async function handleDeleteConfirmed() {
     try {
       await api.delete(`/documents/${id}/delete/`)
@@ -51,6 +61,7 @@ export default function DocumentDetailPage() {
     }
   }
 
+  // generam un nou set de intrebari pentru acest document
   async function handleGenerateNewQuiz(options) {
     try {
       setIsGeneratingQuiz(true)
@@ -89,7 +100,10 @@ export default function DocumentDetailPage() {
   if (!documentData) {
     return (
       <PageContainer>
-        <EmptyState title="Document inexistent" description="Documentul nu a putut fi găsit." />
+        <EmptyState
+          title="Document inexistent"
+          description="Documentul nu a putut fi găsit."
+        />
       </PageContainer>
     )
   }
@@ -128,16 +142,25 @@ export default function DocumentDetailPage() {
             <div className="flex flex-wrap gap-3">
               {documentData.generated_questions.length > 0 && (
                 <>
-                  <Link to={`/documents/${documentData.id}/quiz`} className={secondaryButtonClass}>
+                  <Link
+                    to={`/documents/${documentData.id}/quiz`}
+                    className={secondaryButtonClass}
+                  >
                     Reia același quiz
                   </Link>
-                  <button onClick={() => setQuizOptionsOpen(true)} className={primaryButtonClass}>
+                  <button
+                    onClick={() => setQuizOptionsOpen(true)}
+                    className={primaryButtonClass}
+                  >
                     Quiz nou
                   </button>
                 </>
               )}
 
-              <button onClick={() => setConfirmDeleteOpen(true)} className={dangerButtonClass}>
+              <button
+                onClick={() => setConfirmDeleteOpen(true)}
+                className={dangerButtonClass}
+              >
                 Șterge documentul
               </button>
             </div>
@@ -167,7 +190,10 @@ export default function DocumentDetailPage() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Definiții extrase" subtitle="Conceptele identificate în document.">
+        <SectionCard
+          title="Definiții extrase"
+          subtitle="Conceptele identificate în document."
+        >
           {documentData.definitions.length === 0 ? (
             <EmptyState
               title="Nu există definiții"
@@ -176,7 +202,10 @@ export default function DocumentDetailPage() {
           ) : (
             <div className="grid gap-4">
               {documentData.definitions.map((item) => (
-                <div key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                <div
+                  key={item.id}
+                  className="rounded-2xl border border-slate-200 bg-white p-4"
+                >
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">
                       {item.language.toUpperCase()}
@@ -186,15 +215,22 @@ export default function DocumentDetailPage() {
                     </span>
                   </div>
 
-                  <h3 className="mt-3 text-lg font-semibold text-slate-950">{item.concept}</h3>
-                  <p className="mt-2 text-sm leading-7 text-slate-600">{item.definition}</p>
+                  <h3 className="mt-3 text-lg font-semibold text-slate-950">
+                    {item.concept}
+                  </h3>
+                  <p className="mt-2 text-sm leading-7 text-slate-600">
+                    {item.definition}
+                  </p>
                 </div>
               ))}
             </div>
           )}
         </SectionCard>
 
-        <SectionCard title="Întrebări generate" subtitle="Preview pentru quiz-ul asociat documentului.">
+        <SectionCard
+          title="Întrebări generate"
+          subtitle="Preview pentru quiz-ul asociat documentului."
+        >
           {documentData.generated_questions.length === 0 ? (
             <EmptyState
               title="Nu există întrebări"
@@ -203,7 +239,10 @@ export default function DocumentDetailPage() {
           ) : (
             <div className="grid gap-4">
               {documentData.generated_questions.map((question) => (
-                <div key={question.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                <div
+                  key={question.id}
+                  className="rounded-2xl border border-slate-200 bg-white p-4"
+                >
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
                       {question.question_type}
@@ -213,7 +252,9 @@ export default function DocumentDetailPage() {
                     </span>
                   </div>
 
-                  <p className="mt-3 text-sm font-medium text-slate-900">{question.question_text}</p>
+                  <p className="mt-3 text-sm font-medium text-slate-900">
+                    {question.question_text}
+                  </p>
 
                   {Array.isArray(question.options) && question.options.length > 0 && (
                     <div className="mt-3 grid gap-2">

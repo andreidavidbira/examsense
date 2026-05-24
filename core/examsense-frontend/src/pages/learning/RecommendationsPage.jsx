@@ -1,14 +1,19 @@
 import { useEffect, useState } from 'react'
+
 import api from '../../api/axios'
+import EmptyState from '../../components/common/EmptyState'
 import PageContainer from '../../components/common/PageContainer'
 import SectionCard from '../../components/common/SectionCard'
-import EmptyState from '../../components/common/EmptyState'
+import usePageTitle from '../../hooks/usePageTitle'
 
 export default function RecommendationsPage() {
+  usePageTitle('Recomandări de învățare')
+
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
 
   useEffect(() => {
+    // incarcam recomandarile construite pe baza greselilor recurente
     async function fetchRecommendations() {
       try {
         const response = await api.get('/learning/recommendations/')
@@ -60,9 +65,7 @@ export default function RecommendationsPage() {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <p className="text-lg font-semibold text-slate-950">{item.concept}</p>
-                    <p className="mt-2 text-sm text-slate-500">
-                      Greșit de {item.wrong_count} ori
-                    </p>
+                    <p className="mt-2 text-sm text-slate-500">Greșit de {item.wrong_count} ori</p>
                   </div>
 
                   {item.user_document_number && (

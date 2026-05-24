@@ -1,6 +1,7 @@
-import { NavLink } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { LogOut } from 'lucide-react'
+import { NavLink } from 'react-router-dom'
+
 import { secondaryButtonClass } from '../../utils/buttonClasses'
 
 export default function MobileMenu({ open, items, onClose, onLogout, user }) {
@@ -20,6 +21,7 @@ export default function MobileMenu({ open, items, onClose, onLogout, user }) {
             </p>
           </div>
 
+          {/* afisam pe mobil aceleasi linkuri principale ca in navbarul mare */}
           <nav className="flex flex-col gap-2">
             {items.map(({ to, label, icon: Icon }) => (
               <NavLink
@@ -39,6 +41,7 @@ export default function MobileMenu({ open, items, onClose, onLogout, user }) {
               </NavLink>
             ))}
 
+            {/* butonul de logout ramane disponibil si in meniul mobil */}
             <button
               onClick={onLogout}
               className={`mt-2 inline-flex items-center justify-center gap-2 ${secondaryButtonClass}`}

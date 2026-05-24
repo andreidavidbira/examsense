@@ -1,15 +1,19 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+
 import api from '../../api/axios'
+import ErrorAlert from '../../components/common/ErrorAlert'
 import PageContainer from '../../components/common/PageContainer'
 import SectionCard from '../../components/common/SectionCard'
-import ErrorAlert from '../../components/common/ErrorAlert'
 import { useToast } from '../../hooks/useToast'
-import { getApiErrorMessages } from '../../utils/errorMessages'
+import usePageTitle from '../../hooks/usePageTitle'
 import { primaryButtonClass } from '../../utils/buttonClasses'
+import { getApiErrorMessages } from '../../utils/errorMessages'
 import { validateEmail } from '../../utils/validators'
 
 export default function ForgotPasswordPage() {
+  usePageTitle('Resetare parolă')
+
   const { showToast } = useToast()
 
   const [email, setEmail] = useState('')
@@ -18,8 +22,10 @@ export default function ForgotPasswordPage() {
   const [errors, setErrors] = useState([])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // validam live adresa de email introdusa
   const emailError = useMemo(() => validateEmail(email), [email])
 
+  // trimitem cererea de resetare catre backend
   async function handleSubmit(e) {
     e.preventDefault()
     setTouched(true)
@@ -55,7 +61,9 @@ export default function ForgotPasswordPage() {
         >
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Email</label>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Email
+              </label>
               <input
                 type="email"
                 value={email}

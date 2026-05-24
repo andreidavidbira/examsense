@@ -1,22 +1,31 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+
 import api from '../../api/axios'
-import PageContainer from '../../components/common/PageContainer'
-import SectionCard from '../../components/common/SectionCard'
 import EmptyState from '../../components/common/EmptyState'
+import PageContainer from '../../components/common/PageContainer'
 import QuizOptionsDialog from '../../components/common/QuizOptionsDialog'
+import SectionCard from '../../components/common/SectionCard'
 import { useToast } from '../../hooks/useToast'
-import { primaryButtonClass, secondaryButtonClass } from '../../utils/buttonClasses'
+import usePageTitle from '../../hooks/usePageTitle'
+import {
+  primaryButtonClass,
+  secondaryButtonClass,
+} from '../../utils/buttonClasses'
 
 export default function QuizResultPage() {
+  usePageTitle('Rezultatul quiz-ului')
+
   const location = useLocation()
   const navigate = useNavigate()
   const { showToast } = useToast()
+
   const result = location.state
 
   const [quizOptionsOpen, setQuizOptionsOpen] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
 
+  // daca utilizatorul intra direct pe pagina fara state, afisam empty state
   if (!result) {
     return (
       <PageContainer>
@@ -28,10 +37,12 @@ export default function QuizResultPage() {
     )
   }
 
+  // reluam exact acelasi quiz deja generat pentru document
   function handleReplaySameQuiz() {
     navigate(`/documents/${result.document_id}/quiz`)
   }
 
+  // generam un nou set de intrebari si redirectionam utilizatorul catre noul quiz
   async function handleGenerateNewQuiz(options) {
     setIsGenerating(true)
 
@@ -75,13 +86,19 @@ export default function QuizResultPage() {
               <button onClick={handleReplaySameQuiz} className={secondaryButtonClass}>
                 Reia același quiz
               </button>
-              <button onClick={() => setQuizOptionsOpen(true)} className={secondaryButtonClass}>
+              <button
+                onClick={() => setQuizOptionsOpen(true)}
+                className={secondaryButtonClass}
+              >
                 Generează alt quiz
               </button>
               <Link to="/quiz-history" className={secondaryButtonClass}>
                 Vezi istoricul
               </Link>
-              <Link to={`/documents/${result.document_id}`} className={primaryButtonClass}>
+              <Link
+                to={`/documents/${result.document_id}`}
+                className={primaryButtonClass}
+              >
                 Înapoi la document
               </Link>
             </div>
@@ -125,14 +142,18 @@ export default function QuizResultPage() {
                     <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                       Răspuns selectat
                     </p>
-                    <p className="mt-2 text-sm text-slate-700">{String(item.selected_answer)}</p>
+                    <p className="mt-2 text-sm text-slate-700">
+                      {String(item.selected_answer)}
+                    </p>
                   </div>
 
                   <div className="rounded-xl bg-white/80 p-3">
                     <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                       Răspuns corect
                     </p>
-                    <p className="mt-2 text-sm text-slate-700">{String(item.correct_answer)}</p>
+                    <p className="mt-2 text-sm text-slate-700">
+                      {String(item.correct_answer)}
+                    </p>
                   </div>
                 </div>
 

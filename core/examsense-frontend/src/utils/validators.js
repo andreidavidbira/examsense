@@ -1,3 +1,4 @@
+// validam formatul de baza pentru email
 export function validateEmail(email) {
   if (!email || !email.trim()) {
     return 'Emailul este obligatoriu.'
@@ -10,6 +11,7 @@ export function validateEmail(email) {
   return ''
 }
 
+// verificam daca parola respecta regulile minime de siguranta
 export function validateStrongPassword(password) {
   if (!password) return 'Parola este obligatorie.'
   if (password.length < 8) return 'Parola trebuie să aibă minim 8 caractere.'
@@ -25,12 +27,14 @@ export function validateStrongPassword(password) {
   return ''
 }
 
+// verificam daca cele doua parole introduse coincid
 export function validatePasswordMatch(password, confirmPassword) {
   if (!confirmPassword) return 'Confirmarea parolei este obligatorie.'
   if (password !== confirmPassword) return 'Parolele nu coincid.'
   return ''
 }
 
+// validam username-ul introdus de utilizator
 export function validateUsername(username) {
   if (!username || !username.trim()) {
     return 'Username-ul este obligatoriu.'
@@ -43,6 +47,7 @@ export function validateUsername(username) {
   return ''
 }
 
+// validam generic un camp text obligatoriu
 export function validateRequiredText(value, label = 'Câmpul') {
   if (!value || !value.trim()) {
     return `${label} este obligatoriu.`
@@ -51,12 +56,14 @@ export function validateRequiredText(value, label = 'Câmpul') {
   return ''
 }
 
+// validam fisierul ales pentru upload
 export function validateUploadFile(file) {
   if (!file) {
     return 'Selectează un fișier PDF sau DOCX.'
   }
 
   const name = file.name?.toLowerCase() || ''
+
   if (!name.endsWith('.pdf') && !name.endsWith('.docx')) {
     return 'Sunt acceptate doar fișiere PDF sau DOCX.'
   }
@@ -64,6 +71,7 @@ export function validateUploadFile(file) {
   return ''
 }
 
+// validam numarul de intrebari cerut la generarea quiz-ului
 export function validateQuestionCount(value) {
   const numericValue = Number(value)
 

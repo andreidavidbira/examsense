@@ -1,14 +1,21 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+
 import api from '../../api/axios'
-import PageContainer from '../../components/common/PageContainer'
-import SectionCard from '../../components/common/SectionCard'
 import EmptyState from '../../components/common/EmptyState'
+import PageContainer from '../../components/common/PageContainer'
 import QuizOptionsDialog from '../../components/common/QuizOptionsDialog'
+import SectionCard from '../../components/common/SectionCard'
 import { useToast } from '../../hooks/useToast'
-import { primaryButtonClass, secondaryButtonClass } from '../../utils/buttonClasses'
+import usePageTitle from '../../hooks/usePageTitle'
+import {
+  primaryButtonClass,
+  secondaryButtonClass,
+} from '../../utils/buttonClasses'
 
 export default function QuizHistoryPage() {
+  usePageTitle('Istoric quiz-uri')
+
   const navigate = useNavigate()
   const { showToast } = useToast()
 
@@ -19,6 +26,7 @@ export default function QuizHistoryPage() {
   const [isGenerating, setIsGenerating] = useState(false)
 
   useEffect(() => {
+    // incarcam istoricul tuturor quiz-urilor finalizate
     async function fetchHistory() {
       try {
         const response = await api.get('/documents/quiz-history/')
@@ -31,15 +39,18 @@ export default function QuizHistoryPage() {
     fetchHistory()
   }, [])
 
+  // reluam exact quiz-ul deja generat pentru documentul ales
   function handleReplaySame(documentId) {
     navigate(`/documents/${documentId}/quiz`)
   }
 
+  // deschidem dialogul pentru generarea unui quiz nou
   function openGenerateDialog(documentId) {
     setSelectedDocumentId(documentId)
     setQuizOptionsOpen(true)
   }
 
+  // generam un nou set de intrebari pentru documentul selectat
   async function handleGenerateNewQuiz(options) {
     if (!selectedDocumentId) return
 
@@ -113,7 +124,9 @@ export default function QuizHistoryPage() {
               >
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
-                    <p className="text-sm text-slate-500">Attempt #{attempt.user_attempt_number}</p>
+                    <p className="text-sm text-slate-500">
+                      Attempt #{attempt.user_attempt_number}
+                    </p>
                     <p className="mt-1 text-base font-semibold text-slate-950">
                       Document #{attempt.user_document_number}
                     </p>

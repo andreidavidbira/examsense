@@ -1,3 +1,4 @@
+// extragem doar numele fisierului dintr-un path complet
 export function getDisplayFileName(filePath) {
   if (!filePath) {
     return ''
@@ -5,5 +6,6 @@ export function getDisplayFileName(filePath) {
 
   const normalized = String(filePath).replaceAll('\\', '/')
   const parts = normalized.split('/')
+
   return parts[parts.length - 1] || normalized
 }

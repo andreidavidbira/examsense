@@ -7,6 +7,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
 
+  // cerem backendului datele utilizatorului autentificat
   async function fetchMe() {
     try {
       const response = await api.get('/auth/me/')
@@ -18,6 +19,7 @@ export function AuthProvider({ children }) {
     }
   }
 
+  // facem login si salvam utilizatorul in context
   async function login(username, password) {
     await ensureCsrfCookie()
 
@@ -30,12 +32,14 @@ export function AuthProvider({ children }) {
     return response.data
   }
 
+  // cream un cont nou
   async function register(payload) {
     await ensureCsrfCookie()
     const response = await api.post('/auth/register/', payload)
     return response.data
   }
 
+  // facem logout si golim utilizatorul din context chiar daca cererea esueaza
   async function logout() {
     try {
       await ensureCsrfCookie()
@@ -46,6 +50,7 @@ export function AuthProvider({ children }) {
     }
   }
 
+  // reincarcam profilul curent dupa modificari
   async function refreshProfile() {
     await fetchMe()
   }
@@ -61,6 +66,7 @@ export function AuthProvider({ children }) {
       }
     }
 
+    // ascultam evenimentul global trimis cand sesiunea expira
     function handleForcedLogout() {
       setUser(null)
       setIsLoading(false)
@@ -74,6 +80,7 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
+  // expunem starea si actiunile de autentificare pentru toata aplicatia
   const value = useMemo(
     () => ({
       user,

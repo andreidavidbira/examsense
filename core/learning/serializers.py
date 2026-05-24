@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 
+# definim forma unui concept la care utilizatorul greseste frecvent
 class WeakConceptSerializer(serializers.Serializer):
     concept = serializers.CharField()
     wrong_count = serializers.IntegerField()
@@ -9,6 +10,7 @@ class WeakConceptSerializer(serializers.Serializer):
     user_document_number = serializers.IntegerField(allow_null=True, required=False)
 
 
+# definim forma unei recomandari generate pe baza conceptelor slabe
 class RecommendationSerializer(serializers.Serializer):
     concept = serializers.CharField()
     wrong_count = serializers.IntegerField()
@@ -18,6 +20,7 @@ class RecommendationSerializer(serializers.Serializer):
     user_document_number = serializers.IntegerField(allow_null=True, required=False)
 
 
+# serializam attempturile recente care apar in dashboard
 class RecentAttemptSerializer(serializers.Serializer):
     attempt_id = serializers.IntegerField()
     user_attempt_number = serializers.IntegerField()
@@ -29,6 +32,7 @@ class RecentAttemptSerializer(serializers.Serializer):
     completed_at = serializers.DateTimeField()
 
 
+# definim structura completa pentru dashboardul de learning
 class LearningDashboardSerializer(serializers.Serializer):
     total_attempts = serializers.IntegerField()
     average_score = serializers.FloatField()
@@ -40,6 +44,7 @@ class LearningDashboardSerializer(serializers.Serializer):
     recent_attempts = RecentAttemptSerializer(many=True)
 
 
+# definim forma unei intrebari din quiz-ul de recapitulare
 class RetryQuizQuestionSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     question_type = serializers.CharField()
@@ -49,6 +54,7 @@ class RetryQuizQuestionSerializer(serializers.Serializer):
     correct_answer = serializers.CharField()
 
 
+# definim raspunsul complet pentru quiz-ul de recapitulare
 class RetryQuizResponseSerializer(serializers.Serializer):
     count = serializers.IntegerField()
     questions = RetryQuizQuestionSerializer(many=True)

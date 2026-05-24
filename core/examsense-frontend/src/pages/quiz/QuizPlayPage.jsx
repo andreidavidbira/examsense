@@ -1,14 +1,21 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+
 import api from '../../api/axios'
-import PageContainer from '../../components/common/PageContainer'
-import SectionCard from '../../components/common/SectionCard'
 import EmptyState from '../../components/common/EmptyState'
 import ErrorAlert from '../../components/common/ErrorAlert'
-import { primaryButtonClass, secondaryButtonClass } from '../../utils/buttonClasses'
+import PageContainer from '../../components/common/PageContainer'
+import SectionCard from '../../components/common/SectionCard'
+import usePageTitle from '../../hooks/usePageTitle'
+import {
+  primaryButtonClass,
+  secondaryButtonClass,
+} from '../../utils/buttonClasses'
 import { getDisplayFileName } from '../../utils/fileHelpers'
 
 export default function QuizPlayPage() {
+  usePageTitle('Quiz')
+
   const { id } = useParams()
   const navigate = useNavigate()
 
@@ -20,6 +27,7 @@ export default function QuizPlayPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
+    // luam documentul si intrebarile generate pentru quiz
     async function fetchDocument() {
       try {
         const response = await api.get(`/documents/${id}/`)
@@ -34,14 +42,16 @@ export default function QuizPlayPage() {
     fetchDocument()
   }, [id])
 
+  // extragem lista de intrebari din documentul incarcat
   const questions = useMemo(() => {
     return documentData?.generated_questions || []
   }, [documentData])
 
   const currentQuestion = questions[currentIndex]
-  const answeredCount = questions.filter((q) => answers[q.id] !== undefined).length
+  const answeredCount = questions.filter((question) => answers[question.id] !== undefined).length
   const allAnswered = questions.length > 0 && answeredCount === questions.length
 
+  // salvam raspunsul ales pentru o intrebare
   function setAnswer(questionId, value) {
     setAnswers((prev) => ({
       ...prev,
@@ -49,6 +59,7 @@ export default function QuizPlayPage() {
     }))
   }
 
+  // trecem la urmatoarea intrebare si revenim in partea de sus a paginii
   function goNext() {
     if (currentIndex < questions.length - 1) {
       setCurrentIndex((prev) => prev + 1)
@@ -56,6 +67,7 @@ export default function QuizPlayPage() {
     }
   }
 
+  // revenim la intrebarea anterioara
   function goPrev() {
     if (currentIndex > 0) {
       setCurrentIndex((prev) => prev - 1)
@@ -63,6 +75,7 @@ export default function QuizPlayPage() {
     }
   }
 
+  // trimitem toate raspunsurile si navigam catre pagina de rezultat
   async function handleSubmitQuiz() {
     if (!documentData || !allAnswered) {
       return
@@ -73,9 +86,9 @@ export default function QuizPlayPage() {
     try {
       const payload = {
         document_id: Number(id),
-        answers: questions.map((q) => ({
-          question_id: q.id,
-          selected_answer: answers[q.id],
+        answers: questions.map((question) => ({
+          question_id: question.id,
+          selected_answer: answers[question.id],
         })),
       }
 
@@ -136,11 +149,12 @@ export default function QuizPlayPage() {
 
           <div className="mb-5 h-2 w-full overflow-hidden rounded-full bg-slate-100">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-brand-500 to-violet-500 transition-all"
+              className="h-full rounded-full bg-linear-to-r from-brand-500 to-violet-500 transition-all"
               style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
             />
           </div>
 
+          {/* afisam navigatorul rapid intre intrebari */}
           <div className="mb-5 grid grid-cols-5 gap-2 sm:grid-cols-10">
             {questions.map((question, index) => {
               const isActive = index === currentIndex
@@ -232,6 +246,7 @@ export default function QuizPlayPage() {
             </div>
           )}
 
+          {/* pe desktop afisam butoanele de navigare sub continut */}
           <div className="mt-6 hidden flex-col gap-3 sm:flex sm:flex-row sm:justify-between">
             <button
               onClick={goPrev}
@@ -260,6 +275,7 @@ export default function QuizPlayPage() {
         </SectionCard>
       </div>
 
+      {/* pe mobil pastram butoanele fixate jos pentru acces rapid */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 p-3 backdrop-blur sm:hidden">
         <div className="mx-auto flex max-w-3xl gap-3">
           <button

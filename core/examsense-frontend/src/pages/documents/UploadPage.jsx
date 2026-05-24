@@ -1,15 +1,22 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+
 import api from '../../api/axios'
+import ErrorAlert from '../../components/common/ErrorAlert'
 import PageContainer from '../../components/common/PageContainer'
 import SectionCard from '../../components/common/SectionCard'
-import ErrorAlert from '../../components/common/ErrorAlert'
 import { useToast } from '../../hooks/useToast'
+import usePageTitle from '../../hooks/usePageTitle'
 import { primaryButtonClass } from '../../utils/buttonClasses'
 import { getApiErrorMessages } from '../../utils/errorMessages'
-import { validateUploadFile, validateQuestionCount } from '../../utils/validators'
+import {
+  validateQuestionCount,
+  validateUploadFile,
+} from '../../utils/validators'
 
 export default function UploadPage() {
+  usePageTitle('Încarcă document')
+
   const navigate = useNavigate()
   const { showToast } = useToast()
 
@@ -20,6 +27,7 @@ export default function UploadPage() {
   const [errors, setErrors] = useState([])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // validam live campurile importante din formular
   const liveErrors = useMemo(() => {
     return {
       file: validateUploadFile(file),
@@ -29,6 +37,7 @@ export default function UploadPage() {
 
   const hasLiveErrors = Object.values(liveErrors).some(Boolean)
 
+  // marcam un camp ca fiind atins pentru a afisa erorile doar cand este cazul
   function handleBlur(fieldName) {
     setTouched((prev) => ({
       ...prev,
@@ -36,8 +45,10 @@ export default function UploadPage() {
     }))
   }
 
+  // incarcam documentul si redirectionam utilizatorul spre pagina de detalii
   async function handleSubmit(e) {
     e.preventDefault()
+
     setErrors([])
     setTouched({
       file: true,
@@ -70,6 +81,7 @@ export default function UploadPage() {
         err,
         'Upload-ul sau procesarea au eșuat. Verifică fișierul și încearcă din nou.'
       )
+
       setErrors(parsedErrors)
       showToast('Upload-ul documentului a eșuat.', 'error')
     } finally {
@@ -86,7 +98,9 @@ export default function UploadPage() {
         >
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Fișier</label>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Fișier
+              </label>
               <input
                 type="file"
                 accept=".pdf,.docx"
@@ -101,7 +115,9 @@ export default function UploadPage() {
 
             <div className="grid gap-5 sm:grid-cols-2">
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">Dificultate</label>
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  Dificultate
+                </label>
                 <select
                   value={difficulty}
                   onChange={(e) => setDifficulty(e.target.value)}
@@ -114,7 +130,9 @@ export default function UploadPage() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">Număr întrebări</label>
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  Număr întrebări
+                </label>
                 <input
                   type="number"
                   min="1"
@@ -125,7 +143,9 @@ export default function UploadPage() {
                   className="w-full rounded-2xl border border-slate-200 px-4 py-3"
                 />
                 {touched.maxQuestions && liveErrors.maxQuestions && (
-                  <p className="mt-2 text-xs text-rose-600">{liveErrors.maxQuestions}</p>
+                  <p className="mt-2 text-xs text-rose-600">
+                    {liveErrors.maxQuestions}
+                  </p>
                 )}
               </div>
             </div>

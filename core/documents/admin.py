@@ -4,11 +4,12 @@ from .models import (
     Document,
     ExtractedDefinition,
     GeneratedQuestion,
+    QuizAnswer,
     QuizAttempt,
-    QuizAnswer
 )
 
 
+# aici inregistram modelele din documents pentru django admin
 @admin.register(Document)
 class DocumentAdmin(admin.ModelAdmin):
     list_display = ("id", "user", "file", "uploaded_at")

@@ -1,20 +1,25 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+
 import api from '../../api/axios'
-import PageContainer from '../../components/common/PageContainer'
-import SectionCard from '../../components/common/SectionCard'
 import EmptyState from '../../components/common/EmptyState'
 import ErrorAlert from '../../components/common/ErrorAlert'
+import PageContainer from '../../components/common/PageContainer'
+import SectionCard from '../../components/common/SectionCard'
 import SkeletonCard from '../../components/common/SkeletonCard'
+import usePageTitle from '../../hooks/usePageTitle'
 import { primaryButtonClass } from '../../utils/buttonClasses'
 import { getDisplayFileName } from '../../utils/fileHelpers'
 
 export default function DocumentsPage() {
+  usePageTitle('Documentele mele')
+
   const [documents, setDocuments] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
+    // incarcam toate documentele utilizatorului curent
     async function fetchDocuments() {
       try {
         const response = await api.get('/documents/')
@@ -63,9 +68,11 @@ export default function DocumentsPage() {
               <Link
                 key={doc.id}
                 to={`/documents/${doc.id}`}
-                className="min-w-0 overflow-hidden rounded-[24px] border border-slate-200/80 bg-white/90 p-5 shadow-sm transition hover:border-brand-200 hover:bg-brand-50/40 hover:shadow-md"
+                className="min-w-0 overflow-hidden rounded-3xl border border-slate-200/80 bg-white/90 p-5 shadow-sm transition hover:border-brand-200 hover:bg-brand-50/40 hover:shadow-md"
               >
-                <p className="text-sm text-slate-500">Document #{doc.user_document_number}</p>
+                <p className="text-sm text-slate-500">
+                  Document #{doc.user_document_number}
+                </p>
 
                 <p className="mt-2 min-w-0 break-all text-lg font-semibold leading-7 text-slate-950">
                   {getDisplayFileName(doc.file)}

@@ -1,16 +1,21 @@
 from django.contrib.auth import get_user_model
 from django.db.models import Avg
 
-from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from documents.models import Document, ExtractedDefinition, GeneratedQuestion, QuizAttempt
+from documents.models import (
+    Document,
+    ExtractedDefinition,
+    GeneratedQuestion,
+    QuizAttempt,
+)
 from .permissions import IsAdminPanelUser
 from .serializers import (
+    AdminAttemptSerializer,
+    AdminDocumentSerializer,
     AdminOverviewSerializer,
     AdminUserSerializer,
-    AdminDocumentSerializer,
-    AdminAttemptSerializer,
     ToggleUserActiveSerializer,
 )
 
@@ -18,6 +23,7 @@ from .serializers import (
 User = get_user_model()
 
 
+# calculam numarul documentului raportat doar la utilizatorul curent
 def get_user_document_number(user_id, document_id):
     return (
         Document.objects
@@ -26,6 +32,7 @@ def get_user_document_number(user_id, document_id):
     )
 
 
+# calculam numarul attemptului raportat doar la utilizatorul curent
 def get_user_attempt_number(user_id, attempt_id):
     return (
         QuizAttempt.objects
@@ -37,6 +44,7 @@ def get_user_attempt_number(user_id, attempt_id):
 class AdminOverviewView(APIView):
     permission_classes = [IsAdminPanelUser]
 
+    # intoarcem statisticile generale pentru dashboardul de admin
     def get(self, request):
         avg_score = QuizAttempt.objects.aggregate(avg=Avg("score"))["avg"] or 0
 
@@ -58,10 +66,12 @@ class AdminOverviewView(APIView):
 class AdminUsersListView(APIView):
     permission_classes = [IsAdminPanelUser]
 
+    # construim lista tuturor utilizatorilor pentru panoul de admin
     def get(self, request):
         users = User.objects.all().order_by("-date_joined")
 
         results = []
+
         for user in users:
             results.append({
                 "id": user.id,
@@ -77,19 +87,26 @@ class AdminUsersListView(APIView):
             })
 
         serializer = AdminUserSerializer(results, many=True)
+
         return Response({
             "count": len(serializer.data),
-            "results": serializer.data
+            "results": serializer.data,
         })
 
 
 class AdminDocumentsListView(APIView):
     permission_classes = [IsAdminPanelUser]
 
+    # construim lista tuturor documentelor incarcate in platforma
     def get(self, request):
-        documents = Document.objects.select_related("user").order_by("-uploaded_at")
+        documents = (
+            Document.objects
+            .select_related("user")
+            .order_by("-uploaded_at")
+        )
 
         results = []
+
         for document in documents:
             results.append({
                 "id": document.id,
@@ -104,19 +121,26 @@ class AdminDocumentsListView(APIView):
             })
 
         serializer = AdminDocumentSerializer(results, many=True)
+
         return Response({
             "count": len(serializer.data),
-            "results": serializer.data
+            "results": serializer.data,
         })
 
 
 class AdminAttemptsListView(APIView):
     permission_classes = [IsAdminPanelUser]
 
+    # construim istoricul global al tuturor attempturilor
     def get(self, request):
-        attempts = QuizAttempt.objects.select_related("user", "document").order_by("-completed_at")
+        attempts = (
+            QuizAttempt.objects
+            .select_related("user", "document")
+            .order_by("-completed_at")
+        )
 
         results = []
+
         for attempt in attempts:
             results.append({
                 "id": attempt.id,
@@ -131,25 +155,35 @@ class AdminAttemptsListView(APIView):
             })
 
         serializer = AdminAttemptSerializer(results, many=True)
+
         return Response({
             "count": len(serializer.data),
-            "results": serializer.data
+            "results": serializer.data,
         })
 
 
 class AdminToggleUserActiveView(APIView):
     permission_classes = [IsAdminPanelUser]
 
+    # schimbam starea activa sau inactiva a unui utilizator
     def patch(self, request, user_id):
         try:
             user = User.objects.get(id=user_id)
         except User.DoesNotExist:
-            return Response({"error": "Utilizatorul nu a fost găsit."}, status=404)
+            return Response(
+                {"error": "Utilizatorul nu a fost găsit."},
+                status=404,
+            )
 
+        # nu permitem adminului sa isi dezactiveze propriul cont
         if user.id == request.user.id:
-            return Response({"error": "Nu îți poți dezactiva propriul cont din panoul de admin."}, status=400)
+            return Response(
+                {"error": "Nu îți poți dezactiva propriul cont din panoul de admin."},
+                status=400,
+            )
 
         serializer = ToggleUserActiveSerializer(data=request.data)
+
         if not serializer.is_valid():
             return Response(serializer.errors, status=400)
 
@@ -158,18 +192,25 @@ class AdminToggleUserActiveView(APIView):
 
         return Response({
             "message": "Starea utilizatorului a fost actualizată.",
-            "is_active": user.is_active
+            "is_active": user.is_active,
         })
 
 
 class AdminDeleteDocumentView(APIView):
     permission_classes = [IsAdminPanelUser]
 
+    # permitem stergerea unui document direct din panoul de admin
     def delete(self, request, document_id):
         try:
             document = Document.objects.get(id=document_id)
         except Document.DoesNotExist:
-            return Response({"error": "Documentul nu a fost găsit."}, status=404)
+            return Response(
+                {"error": "Documentul nu a fost găsit."},
+                status=404,
+            )
 
         document.delete()
-        return Response({"message": "Documentul a fost șters cu succes."})
+
+        return Response({
+            "message": "Documentul a fost șters cu succes.",
+        })

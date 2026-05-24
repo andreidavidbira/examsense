@@ -1,21 +1,25 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
+
 import api from '../../api/axios'
+import ErrorAlert from '../../components/common/ErrorAlert'
 import PageContainer from '../../components/common/PageContainer'
 import SectionCard from '../../components/common/SectionCard'
-import ErrorAlert from '../../components/common/ErrorAlert'
-import { getApiErrorMessages } from '../../utils/errorMessages'
 import { useAuth } from '../../hooks/useAuth'
 import { useToast } from '../../hooks/useToast'
+import usePageTitle from '../../hooks/usePageTitle'
 import { primaryButtonClass } from '../../utils/buttonClasses'
+import { getApiErrorMessages } from '../../utils/errorMessages'
 import {
+  validatePasswordMatch,
   validateRequiredText,
   validateStrongPassword,
-  validatePasswordMatch,
 } from '../../utils/validators'
 
 export default function ChangePasswordPage() {
+  usePageTitle('Schimbare parolă')
+
   const navigate = useNavigate()
   const { logout } = useAuth()
   const { showToast } = useToast()
@@ -34,16 +38,21 @@ export default function ChangePasswordPage() {
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showNewPasswordConfirm, setShowNewPasswordConfirm] = useState(false)
 
+  // validam live toate campurile necesare pentru schimbarea parolei
   const liveErrors = useMemo(() => {
     return {
       old_password: validateRequiredText(form.old_password, 'Parola veche'),
       new_password: validateStrongPassword(form.new_password),
-      new_password_confirm: validatePasswordMatch(form.new_password, form.new_password_confirm),
+      new_password_confirm: validatePasswordMatch(
+        form.new_password,
+        form.new_password_confirm
+      ),
     }
   }, [form])
 
   const hasLiveErrors = Object.values(liveErrors).some(Boolean)
 
+  // actualizam campul modificat in formular
   function handleChange(e) {
     setForm((prev) => ({
       ...prev,
@@ -51,6 +60,7 @@ export default function ChangePasswordPage() {
     }))
   }
 
+  // marcam un camp ca fiind atins pentru afisarea erorilor
   function handleBlur(e) {
     setTouched((prev) => ({
       ...prev,
@@ -62,6 +72,7 @@ export default function ChangePasswordPage() {
     return touched[name] ? liveErrors[name] : ''
   }
 
+  // trimitem parola noua catre backend si delogam utilizatorul daca este nevoie
   async function handleSubmit(e) {
     e.preventDefault()
     setMessage('')
@@ -112,7 +123,9 @@ export default function ChangePasswordPage() {
         >
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Parola veche</label>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Parola veche
+              </label>
               <div className="relative">
                 <input
                   type={showOldPassword ? 'text' : 'password'}
@@ -137,7 +150,9 @@ export default function ChangePasswordPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Parola nouă</label>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Parola nouă
+              </label>
               <div className="relative">
                 <input
                   type={showNewPassword ? 'text' : 'password'}
@@ -166,7 +181,9 @@ export default function ChangePasswordPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Confirmă parola nouă</label>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Confirmă parola nouă
+              </label>
               <div className="relative">
                 <input
                   type={showNewPasswordConfirm ? 'text' : 'password'}
@@ -186,7 +203,9 @@ export default function ChangePasswordPage() {
                 </button>
               </div>
               {fieldError('new_password_confirm') && (
-                <p className="mt-2 text-xs text-rose-600">{fieldError('new_password_confirm')}</p>
+                <p className="mt-2 text-xs text-rose-600">
+                  {fieldError('new_password_confirm')}
+                </p>
               )}
             </div>
 

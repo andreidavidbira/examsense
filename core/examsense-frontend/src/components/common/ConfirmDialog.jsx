@@ -18,7 +18,7 @@ export default function ConfirmDialog({
       {open && (
         <>
           <motion.div
-            className="fixed inset-0 z-[90] bg-slate-950/35 backdrop-blur-sm"
+            className="fixed inset-0 z-90 bg-slate-950/35 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -26,7 +26,7 @@ export default function ConfirmDialog({
           />
 
           <motion.div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+            className="fixed inset-0 z-100 flex items-center justify-center p-4"
             initial={{ opacity: 0, scale: 0.96, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 10 }}

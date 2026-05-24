@@ -1,14 +1,20 @@
 import { useEffect, useState } from 'react'
+
 import api from '../../api/axios'
+import ConfirmDialog from '../../components/common/ConfirmDialog'
+import ErrorAlert from '../../components/common/ErrorAlert'
+import PageLoader from '../../components/common/PageLoader'
 import PageContainer from '../../components/common/PageContainer'
 import SectionCard from '../../components/common/SectionCard'
-import PageLoader from '../../components/common/PageLoader'
-import ErrorAlert from '../../components/common/ErrorAlert'
-import ConfirmDialog from '../../components/common/ConfirmDialog'
 import { useToast } from '../../hooks/useToast'
-import { dangerButtonClass, secondaryButtonClass } from '../../utils/buttonClasses'
+import usePageTitle from '../../hooks/usePageTitle'
+import {
+  dangerButtonClass,
+  secondaryButtonClass,
+} from '../../utils/buttonClasses'
 import { getDisplayFileName } from '../../utils/fileHelpers'
 
+// afisam un card simplu pentru statisticile din dashboardul de admin
 function StatCard({ label, value }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -19,6 +25,7 @@ function StatCard({ label, value }) {
 }
 
 export default function AdminDashboardPage() {
+  usePageTitle('Panoul de administrare')
   const { showToast } = useToast()
 
   const [overview, setOverview] = useState(null)
@@ -31,11 +38,17 @@ export default function AdminDashboardPage() {
   const [selectedUser, setSelectedUser] = useState(null)
   const [selectedDocument, setSelectedDocument] = useState(null)
 
+  // incarcam toate datele necesare pentru panoul de administrare
   async function fetchAll() {
     try {
       setLoading(true)
 
-      const [overviewResponse, usersResponse, documentsResponse, attemptsResponse] = await Promise.all([
+      const [
+        overviewResponse,
+        usersResponse,
+        documentsResponse,
+        attemptsResponse,
+      ] = await Promise.all([
         api.get('/adminpanel/overview/'),
         api.get('/adminpanel/users/'),
         api.get('/adminpanel/documents/'),
@@ -58,6 +71,7 @@ export default function AdminDashboardPage() {
     fetchAll()
   }, [])
 
+  // schimbam starea activa sau inactiva a utilizatorului selectat
   async function handleToggleUserActive() {
     if (!selectedUser) return
 
@@ -74,6 +88,7 @@ export default function AdminDashboardPage() {
     }
   }
 
+  // stergem documentul selectat din panoul de admin
   async function handleDeleteDocument() {
     if (!selectedDocument) return
 
@@ -123,7 +138,9 @@ export default function AdminDashboardPage() {
       <ConfirmDialog
         open={!!selectedDocument}
         title="Ștergere document"
-        description={`Sigur vrei să ștergi documentul ${selectedDocument ? getDisplayFileName(selectedDocument.file) : ''}?`}
+        description={`Sigur vrei să ștergi documentul ${
+          selectedDocument ? getDisplayFileName(selectedDocument.file) : ''
+        }?`}
         confirmText="Șterge"
         cancelText="Anulează"
         onConfirm={handleDeleteDocument}
@@ -156,7 +173,7 @@ export default function AdminDashboardPage() {
           subtitle="Vizualizare și control asupra utilizatorilor existenți."
         >
           <div className="overflow-x-auto">
-            <div className="min-w-[960px]">
+            <div className="min-w-240">
               <div className="grid grid-cols-8 gap-3 rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">
                 <div>Username</div>
                 <div>Email</div>
@@ -203,7 +220,7 @@ export default function AdminDashboardPage() {
           subtitle="Toate documentele încărcate în platformă."
         >
           <div className="overflow-x-auto">
-            <div className="min-w-[1100px]">
+            <div className="min-w-275">
               <div className="grid grid-cols-8 gap-3 rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">
                 <div>User</div>
                 <div>Nume complet</div>
@@ -248,7 +265,7 @@ export default function AdminDashboardPage() {
           subtitle="Istoricul global al încercărilor de quiz."
         >
           <div className="overflow-x-auto">
-            <div className="min-w-[1000px]">
+            <div className="min-w-250">
               <div className="grid grid-cols-7 gap-3 rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">
                 <div>User</div>
                 <div>Nume complet</div>

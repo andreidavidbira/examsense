@@ -2,11 +2,13 @@ from django.urls import path
 
 from .views import (
     LearningDashboardView,
-    WeakConceptsView,
     RecommendationsView,
-    RetryQuizView
+    RetryQuizView,
+    WeakConceptsView,
 )
 
+
+# aici definim rutele pentru dashboard, recomandari si quiz-ul de recapitulare
 urlpatterns = [
     path("dashboard/", LearningDashboardView.as_view()),
     path("weak-concepts/", WeakConceptsView.as_view()),

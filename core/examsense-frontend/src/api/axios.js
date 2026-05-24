@@ -1,5 +1,6 @@
 import axios from 'axios'
 
+// luam valoarea unui cookie dupa nume
 function getCookie(name) {
   const value = `; ${document.cookie}`
   const parts = value.split(`; ${name}=`)
@@ -11,14 +12,17 @@ function getCookie(name) {
   return null
 }
 
+// aici configuram instanta axios folosita in tot frontendul
 const api = axios.create({
   baseURL: 'http://localhost:8000/api',
   timeout: 15000,
   withCredentials: true,
 })
 
+// pastram o singura cerere de refresh activa la un moment dat
 let refreshPromise = null
 
+// cerem backendului sa seteze cookie-ul csrf
 export async function ensureCsrfCookie() {
   await api.get('/auth/csrf/')
 }
@@ -27,6 +31,7 @@ api.interceptors.request.use(
   (config) => {
     const csrfToken = getCookie('csrftoken')
 
+    // daca avem token csrf, il trimitem automat in header
     if (csrfToken) {
       config.headers['X-CSRFToken'] = csrfToken
     }
@@ -49,11 +54,13 @@ api.interceptors.response.use(
     const isMeCall = url.includes('/auth/me/')
     const isCsrfCall = url.includes('/auth/csrf/')
 
+    // daca refresh-ul insusi a esuat, fortam logout in frontend
     if (isRefreshCall && status === 401) {
       window.dispatchEvent(new CustomEvent('auth:logout'))
       return Promise.reject(error)
     }
 
+    // daca primim 401 pe o cerere normala, incercam o singura data sa refacem sesiunea
     if (
       status === 401 &&
       !originalRequest._retry &&

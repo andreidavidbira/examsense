@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 
+# aici definim statisticile generale pe care le afisam in dashboardul de admin
 class AdminOverviewSerializer(serializers.Serializer):
     total_users = serializers.IntegerField()
     active_users = serializers.IntegerField()
@@ -12,6 +13,7 @@ class AdminOverviewSerializer(serializers.Serializer):
     average_score = serializers.FloatField()
 
 
+# aici pregatim datele pentru lista de utilizatori din panoul de admin
 class AdminUserSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     username = serializers.CharField()
@@ -25,6 +27,7 @@ class AdminUserSerializer(serializers.Serializer):
     attempts_count = serializers.IntegerField()
 
 
+# aici pregatim datele pentru lista de documente din panoul de admin
 class AdminDocumentSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     username = serializers.CharField()
@@ -37,6 +40,7 @@ class AdminDocumentSerializer(serializers.Serializer):
     questions_count = serializers.IntegerField()
 
 
+# aici pregatim datele pentru istoricul global al attempturilor
 class AdminAttemptSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     username = serializers.CharField()
@@ -49,5 +53,6 @@ class AdminAttemptSerializer(serializers.Serializer):
     completed_at = serializers.DateTimeField()
 
 
+# aici validam noua stare activa/inactiva a unui utilizator
 class ToggleUserActiveSerializer(serializers.Serializer):
     is_active = serializers.BooleanField()

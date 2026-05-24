@@ -1,7 +1,8 @@
-from django.db import models
 from django.conf import settings
+from django.db import models
 
 
+# modelul principal pentru fisierele incarcate de utilizatori
 class Document(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -16,6 +17,7 @@ class Document(models.Model):
         return f"Document {self.id} - {self.file.name}"
 
 
+# aici salvam definitiile extrase automat dintr-un document
 class ExtractedDefinition(models.Model):
     document = models.ForeignKey(
         Document,
@@ -33,6 +35,7 @@ class ExtractedDefinition(models.Model):
         return f"{self.concept} ({self.language})"
 
 
+# aici salvam intrebarile generate pe baza definitiilor
 class GeneratedQuestion(models.Model):
     QUESTION_TYPES = [
         ("mcq", "Multiple Choice"),
@@ -63,6 +66,7 @@ class GeneratedQuestion(models.Model):
         return self.question_text[:80]
 
 
+# fiecare finalizare de quiz este salvata ca un attempt separat
 class QuizAttempt(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -82,6 +86,7 @@ class QuizAttempt(models.Model):
         return f"Attempt {self.id} - {self.user} - {self.document.id}"
 
 
+# aici salvam fiecare raspuns dat de utilizator in cadrul unui attempt
 class QuizAnswer(models.Model):
     attempt = models.ForeignKey(
         QuizAttempt,

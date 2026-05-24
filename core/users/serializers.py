@@ -7,6 +7,7 @@ from rest_framework import serializers
 User = get_user_model()
 
 
+# validam datele necesare pentru inregistrarea unui cont nou
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
     password_confirm = serializers.CharField(write_only=True, min_length=8)
@@ -22,7 +23,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "password",
-            "password_confirm"
+            "password_confirm",
         ]
 
     def validate_email(self, value):
@@ -53,15 +54,17 @@ class RegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Numele este obligatoriu.")
         return value.strip()
 
+    # verificam daca parolele coincid si daca parola respecta regulile Django
     def validate(self, attrs):
         if attrs["password"] != attrs["password_confirm"]:
             raise serializers.ValidationError({
-                "password_confirm": "Parolele nu coincid."
+                "password_confirm": "Parolele nu coincid.",
             })
 
         validate_password(attrs["password"])
         return attrs
 
+    # cream utilizatorul dupa ce toate datele au fost validate
     def create(self, validated_data):
         validated_data.pop("password_confirm")
 
@@ -70,11 +73,12 @@ class RegisterSerializer(serializers.ModelSerializer):
             email=validated_data["email"],
             first_name=validated_data["first_name"],
             last_name=validated_data["last_name"],
-            password=validated_data["password"]
+            password=validated_data["password"],
         )
         return user
 
 
+# serializam datele utilizatorului pentru frontend
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
@@ -86,16 +90,17 @@ class UserSerializer(serializers.ModelSerializer):
             "last_name",
             "is_active",
             "is_staff",
-            "date_joined"
+            "date_joined",
         ]
         read_only_fields = [
             "id",
             "is_active",
             "is_staff",
-            "date_joined"
+            "date_joined",
         ]
 
 
+# validam modificarile aduse profilului utilizatorului
 class UpdateProfileSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(required=True, allow_blank=False)
     last_name = serializers.CharField(required=True, allow_blank=False)
@@ -106,7 +111,7 @@ class UpdateProfileSerializer(serializers.ModelSerializer):
             "username",
             "email",
             "first_name",
-            "last_name"
+            "last_name",
         ]
 
     def validate_email(self, value):
@@ -142,6 +147,7 @@ class UpdateProfileSerializer(serializers.ModelSerializer):
         return value.strip()
 
 
+# validam schimbarea parolei pentru un utilizator deja autentificat
 class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(write_only=True)
     new_password = serializers.CharField(write_only=True, min_length=8)
@@ -150,13 +156,14 @@ class ChangePasswordSerializer(serializers.Serializer):
     def validate(self, attrs):
         if attrs["new_password"] != attrs["new_password_confirm"]:
             raise serializers.ValidationError({
-                "new_password_confirm": "Parolele noi nu coincid."
+                "new_password_confirm": "Parolele noi nu coincid.",
             })
 
         validate_password(attrs["new_password"])
         return attrs
 
 
+# validam emailul folosit pentru trimiterea linkului de resetare
 class ForgotPasswordRequestSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
@@ -166,6 +173,7 @@ class ForgotPasswordRequestSerializer(serializers.Serializer):
         return value.strip()
 
 
+# validam resetarea parolei pe baza tokenului primit pe email
 class ResetPasswordSerializer(serializers.Serializer):
     uid = serializers.CharField()
     token = serializers.CharField()
@@ -175,7 +183,7 @@ class ResetPasswordSerializer(serializers.Serializer):
     def validate(self, attrs):
         if attrs["new_password"] != attrs["new_password_confirm"]:
             raise serializers.ValidationError({
-                "new_password_confirm": "Parolele nu coincid."
+                "new_password_confirm": "Parolele nu coincid.",
             })
 
         validate_password(attrs["new_password"])

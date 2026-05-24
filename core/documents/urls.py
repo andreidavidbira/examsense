@@ -1,17 +1,19 @@
 from django.urls import path
 
 from .views import (
-    UploadDocumentView,
-    RegenerateQuestionsView,
-    DocumentListView,
-    DocumentDetailView,
     DeleteDocumentView,
-    SubmitQuizView,
-    QuizHistoryView,
+    DocumentDetailView,
+    DocumentListView,
     QuizAttemptDetailView,
+    QuizHistoryView,
     QuizStatsView,
+    RegenerateQuestionsView,
+    SubmitQuizView,
+    UploadDocumentView,
 )
 
+
+# aici definim toate rutele pentru documente, quiz-uri si istoric
 urlpatterns = [
     path("", DocumentListView.as_view()),
     path("upload/", UploadDocumentView.as_view()),

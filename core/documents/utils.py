@@ -2,6 +2,7 @@ import PyPDF2
 from docx import Document as DocxDocument
 
 
+# extragem textul din toate paginile unui fisier pdf
 def extract_text_from_pdf(file):
     try:
         file.seek(0)
@@ -22,6 +23,7 @@ def extract_text_from_pdf(file):
         raise Exception(f"Eroare la citirea PDF-ului: {str(e)}")
 
 
+# extragem textul din toate paragrafele unui fisier docx
 def extract_text_from_docx(file):
     try:
         file.seek(0)

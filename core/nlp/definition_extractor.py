@@ -1,21 +1,25 @@
-from langdetect import detect
 import re
 
-from nlp.patterns import ROMANIAN_PATTERNS, ENGLISH_PATTERNS
+from langdetect import detect
+
+from nlp.patterns import ENGLISH_PATTERNS, ROMANIAN_PATTERNS
 
 
+# detectam limba textului si o reducem la ro sau en
 def detect_language(text):
     try:
         lang = detect(text)
         return "ro" if "ro" in lang else "en"
-    except:
+    except Exception:
         return "en"
 
 
+# normalizam spatiile multiple din text
 def normalize_spaces(text):
     return re.sub(r"\s+", " ", text).strip()
 
 
+# verificam daca textul seamana mai degraba cu un titlu decat cu o definitie
 def is_heading_like(text):
     text = normalize_spaces(text)
 
@@ -31,6 +35,7 @@ def is_heading_like(text):
     return False
 
 
+# filtram propozitiile care nu sunt potrivite pentru extractia definitiilor
 def is_valid_sentence(sentence):
     sentence = normalize_spaces(sentence)
     sentence_lower = sentence.lower()
@@ -41,12 +46,12 @@ def is_valid_sentence(sentence):
     if is_heading_like(sentence):
         return False
 
-    digit_ratio = sum(c.isdigit() for c in sentence) / max(len(sentence), 1)
+    digit_ratio = sum(char.isdigit() for char in sentence) / max(len(sentence), 1)
     if digit_ratio > 0.45:
         return False
 
     math_symbols = ["=", "+", "*", "/", "Δ", "∑", "θ", "∂"]
-    if sum(sentence.count(s) for s in math_symbols) > 3:
+    if sum(sentence.count(symbol) for symbol in math_symbols) > 3:
         return False
 
     bad_phrases = [
@@ -59,12 +64,13 @@ def is_valid_sentence(sentence):
         "presupunem ca rata",
     ]
 
-    if any(p in sentence_lower for p in bad_phrases):
+    if any(phrase in sentence_lower for phrase in bad_phrases):
         return False
 
     return True
 
 
+# luam ultima parte relevanta din contextul din stanga al unei definitii
 def split_left_context(raw_concept):
     raw_concept = normalize_spaces(raw_concept)
 
@@ -74,11 +80,13 @@ def split_left_context(raw_concept):
     separators = [".", ":", ";", " - ", " – ", " — "]
     parts = [raw_concept]
 
-    for sep in separators:
+    for separator in separators:
         new_parts = []
+
         for part in parts:
-            split_parts = [p.strip() for p in part.split(sep) if p.strip()]
+            split_parts = [piece.strip() for piece in part.split(separator) if piece.strip()]
             new_parts.extend(split_parts)
+
         parts = new_parts
 
     if parts:
@@ -87,6 +95,7 @@ def split_left_context(raw_concept):
     return raw_concept
 
 
+# incercam sa extragem tinta reala in expresii de tipul "rolul ..."
 def extract_role_target(text, lang):
     text = normalize_spaces(text)
     lower = text.lower()
@@ -103,16 +112,18 @@ def extract_role_target(text, lang):
 
     for pattern in patterns:
         match = re.search(pattern, lower)
+
         if match:
             target = normalize_spaces(match.group(1))
 
-            # excludem cazuri precum "său"
+            # excludem cateva potriviri foarte slabe
             if target not in {"său", "sau", "să"}:
                 return target
 
     return text
 
 
+# curatam partea de concept inainte sa o salvam
 def extract_concept_smart(raw_concept, lang):
     raw_concept = split_left_context(raw_concept)
     raw_concept = extract_role_target(raw_concept, lang)
@@ -124,6 +135,7 @@ def extract_concept_smart(raw_concept, lang):
     words = raw_concept.split()
 
     stop_starts = {"in", "la", "din", "pentru", "unde", "the", "a", "an"}
+
     while words and words[0].lower() in stop_starts:
         words.pop(0)
 
@@ -136,6 +148,7 @@ def extract_concept_smart(raw_concept, lang):
     return " ".join(words)
 
 
+# curatam si normalizam conceptul extras
 def clean_concept(text):
     text = normalize_spaces(text.lower())
 
@@ -161,8 +174,10 @@ def clean_concept(text):
     ]
 
     changed = True
+
     while changed:
         changed = False
+
         for prefix in removable_prefixes:
             if text.startswith(prefix):
                 text = text[len(prefix):].strip()
@@ -176,15 +191,17 @@ def clean_concept(text):
     text = re.sub(r"^[a-z]\s+(definitions?|definiții|definitii)\s+", "", text)
     text = normalize_spaces(text)
 
-    if any(x in text for x in ["edition", "isbn", "vol", "pp", "wesley"]):
+    # excludem expresii care par a fi metadate bibliografice
+    if any(value in text for value in ["edition", "isbn", "vol", "pp", "wesley"]):
         return ""
 
-    if any(c in text for c in ["(", ")", "\"", "“", "”", ",", ";"]):
+    if any(char in text for char in ["(", ")", "\"", "“", "”", ",", ";"]):
         return ""
 
     return text
 
 
+# verificam daca forma finala a conceptului este suficient de buna
 def is_valid_concept(concept):
     words = concept.split()
 
@@ -197,18 +214,19 @@ def is_valid_concept(concept):
     bad_words = {
         "si", "sau", "iar", "dar", "ce", "care", "unde", "cand", "daca", "nu",
         "english", "definitions", "definition", "română", "romana",
-        "engl", "său", "sau"
+        "engl", "său", "sau",
     }
 
-    if any(w in bad_words for w in words):
+    if any(word in bad_words for word in words):
         return False
 
-    if any(len(w) < 2 for w in words):
+    if any(len(word) < 2 for word in words):
         return False
 
     return True
 
 
+# mai filtram o data definitiile dupa cateva reguli simple de calitate
 def is_good_definition(item):
     definition = item["definition"].strip().lower()
     concept = item["concept"].strip().lower()
@@ -228,6 +246,7 @@ def is_good_definition(item):
     return True
 
 
+# calculam un scor simplu pentru a ordona definitiile mai bune in fata
 def score_definition(item):
     score = 0
 
@@ -245,18 +264,18 @@ def score_definition(item):
     else:
         score -= 2
 
-    digit_ratio = sum(c.isdigit() for c in definition) / max(len(definition), 1)
+    digit_ratio = sum(char.isdigit() for char in definition) / max(len(definition), 1)
     if digit_ratio > 0.2:
         score -= 3
 
-    if any(x in definition for x in ["=", "+", "Δ", "∑", "θ"]):
+    if any(symbol in definition for symbol in ["=", "+", "Δ", "∑", "θ"]):
         score -= 3
 
     strong_patterns = [
         "este", "reprezinta", "reprezintă",
         "is", "means", "represents",
         "este definit ca", "este definită ca",
-        "is defined as", "can be defined as"
+        "is defined as", "can be defined as",
     ]
 
     if pattern in strong_patterns:
@@ -265,6 +284,7 @@ def score_definition(item):
     return score
 
 
+# extragem toate definitiile candidate din lista de propozitii
 def extract_definitions(sentences):
     definitions = []
 
@@ -304,34 +324,41 @@ def extract_definitions(sentences):
                 "definition": definition,
                 "pattern": pattern,
                 "language": lang,
-                "sentence": original_sentence
+                "sentence": original_sentence,
             })
 
             break
 
+    # eliminam duplicatele exacte
     unique = []
     seen = set()
 
     for item in definitions:
         key = (item["concept"], item["definition"], item["language"])
+
         if key in seen:
             continue
+
         seen.add(key)
         unique.append(item)
 
+    # ordonam definitiile in functie de scor
     unique = sorted(unique, key=score_definition, reverse=True)
 
     filtered = [item for item in unique if is_good_definition(item)]
     if not filtered:
         filtered = unique
 
+    # pastram o singura definitie finala pentru fiecare concept si limba
     final = []
     seen_keys = set()
 
     for item in filtered:
         key = (item["concept"], item["language"])
+
         if key in seen_keys:
             continue
+
         seen_keys.add(key)
         final.append(item)
 

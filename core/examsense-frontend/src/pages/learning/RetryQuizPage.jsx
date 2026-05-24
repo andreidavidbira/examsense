@@ -1,14 +1,19 @@
 import { useEffect, useState } from 'react'
+
 import api from '../../api/axios'
+import EmptyState from '../../components/common/EmptyState'
 import PageContainer from '../../components/common/PageContainer'
 import SectionCard from '../../components/common/SectionCard'
-import EmptyState from '../../components/common/EmptyState'
+import usePageTitle from '../../hooks/usePageTitle'
 
 export default function RetryQuizPage() {
+  usePageTitle('Quiz de recapitulare')
+
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
 
   useEffect(() => {
+    // cerem backendului un set de intrebari bazat pe conceptele slabe
     async function fetchRetryQuiz() {
       try {
         const response = await api.post('/learning/retry-quiz/')

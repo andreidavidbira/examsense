@@ -4,6 +4,7 @@ from django.contrib.auth.admin import UserAdmin
 from .models import User
 
 
+# inregistram modelul custom de utilizator in django admin
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
     model = User

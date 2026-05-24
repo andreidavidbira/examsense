@@ -1,32 +1,37 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  ResponsiveContainer,
-  BarChart,
   Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  PieChart,
-  Pie,
-  Cell,
 } from 'recharts'
+
 import api from '../../api/axios'
-import PageContainer from '../../components/common/PageContainer'
-import SectionCard from '../../components/common/SectionCard'
-import StatCard from '../../components/common/StatCard'
 import EmptyState from '../../components/common/EmptyState'
 import ErrorAlert from '../../components/common/ErrorAlert'
 import PageLoader from '../../components/common/PageLoader'
+import PageContainer from '../../components/common/PageContainer'
+import SectionCard from '../../components/common/SectionCard'
+import StatCard from '../../components/common/StatCard'
+import usePageTitle from '../../hooks/usePageTitle'
 
 const SCORE_COLORS = ['#6366f1', '#8b5cf6', '#06b6d4']
 const ANSWER_COLORS = ['#10b981', '#f43f5e']
 
 export default function DashboardPage() {
+  usePageTitle('Dashboard')
+
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
 
   useEffect(() => {
+    // incarcam statisticile principale pentru dashboard
     async function fetchDashboard() {
       try {
         const response = await api.get('/learning/dashboard/')
@@ -39,8 +44,10 @@ export default function DashboardPage() {
     fetchDashboard()
   }, [])
 
+  // pregatim datele pentru graficul cu scoruri
   const scoreChartData = useMemo(() => {
     if (!data) return []
+
     return [
       { name: 'Scor mediu', value: data.average_score },
       { name: 'Scor maxim', value: data.best_score },
@@ -48,8 +55,10 @@ export default function DashboardPage() {
     ]
   }, [data])
 
+  // pregatim datele pentru graficul cu raspunsuri corecte si gresite
   const answersChartData = useMemo(() => {
     if (!data) return []
+
     return [
       { name: 'Corecte', value: data.correct_answers },
       { name: 'Greșite', value: data.wrong_answers },
@@ -97,7 +106,7 @@ export default function DashboardPage() {
             title="Distribuția scorurilor"
             subtitle="Comparație rapidă între scorul mediu, minim și maxim."
           >
-            <div className="h-[320px]">
+            <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={scoreChartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -106,7 +115,10 @@ export default function DashboardPage() {
                   <Tooltip />
                   <Bar dataKey="value" radius={[10, 10, 0, 0]}>
                     {scoreChartData.map((entry, index) => (
-                      <Cell key={`score-cell-${index}`} fill={SCORE_COLORS[index % SCORE_COLORS.length]} />
+                      <Cell
+                        key={`score-cell-${index}`}
+                        fill={SCORE_COLORS[index % SCORE_COLORS.length]}
+                      />
                     ))}
                   </Bar>
                 </BarChart>
@@ -118,7 +130,7 @@ export default function DashboardPage() {
             title="Răspunsuri corecte vs greșite"
             subtitle="Imagine rapidă asupra calității răspunsurilor tale."
           >
-            <div className="h-[320px]">
+            <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -130,7 +142,10 @@ export default function DashboardPage() {
                     paddingAngle={3}
                   >
                     {answersChartData.map((entry, index) => (
-                      <Cell key={`answers-cell-${index}`} fill={ANSWER_COLORS[index % ANSWER_COLORS.length]} />
+                      <Cell
+                        key={`answers-cell-${index}`}
+                        fill={ANSWER_COLORS[index % ANSWER_COLORS.length]}
+                      />
                     ))}
                   </Pie>
                   <Tooltip />
@@ -157,9 +172,7 @@ export default function DashboardPage() {
                   className="rounded-2xl border border-slate-200 bg-white p-4"
                 >
                   <p className="text-lg font-semibold text-slate-950">{item.concept}</p>
-                  <p className="mt-2 text-sm text-slate-500">
-                    Greșit de {item.wrong_count} ori
-                  </p>
+                  <p className="mt-2 text-sm text-slate-500">Greșit de {item.wrong_count} ori</p>
                 </div>
               ))}
             </div>

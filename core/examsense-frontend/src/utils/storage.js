@@ -1,6 +1,7 @@
 const ACCESS_TOKEN_KEY = 'access_token'
 const REFRESH_TOKEN_KEY = 'refresh_token'
 
+// centralizam aici operatiile de baza pentru tokenurile salvate local
 export const storage = {
   getAccessToken() {
     return localStorage.getItem(ACCESS_TOKEN_KEY)
@@ -26,6 +27,7 @@ export const storage = {
     localStorage.removeItem(REFRESH_TOKEN_KEY)
   },
 
+  // salvam ambele tokenuri deodata daca sunt disponibile
   setTokens({ access, refresh }) {
     if (access) {
       localStorage.setItem(ACCESS_TOKEN_KEY, access)
@@ -36,6 +38,7 @@ export const storage = {
     }
   },
 
+  // stergem complet datele de autentificare salvate local
   clearAuth() {
     localStorage.removeItem(ACCESS_TOKEN_KEY)
     localStorage.removeItem(REFRESH_TOKEN_KEY)

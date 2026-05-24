@@ -6,6 +6,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 
+# verificam manual tokenul csrf pentru cererile autentificate cu cookie
 def enforce_csrf(request):
     def dummy_get_response(request):
         return None
@@ -19,6 +20,7 @@ def enforce_csrf(request):
 
 
 class CookieJWTAuthentication(JWTAuthentication):
+    # citim tokenul fie din header, fie din cookie si apoi verificam csrf-ul
     def authenticate(self, request):
         header = self.get_header(request)
         raw_token = None

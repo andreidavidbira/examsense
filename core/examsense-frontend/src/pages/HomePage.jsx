@@ -1,10 +1,14 @@
-import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { Link } from 'react-router-dom'
+
 import PageContainer from '../components/common/PageContainer'
 import SectionCard from '../components/common/SectionCard'
 import { useAuth } from '../hooks/useAuth'
+import usePageTitle from '../hooks/usePageTitle'
 
+// afisam pagina principala a aplicatiei si adaptam butoanele in functie de autentificare
 export default function HomePage() {
+  usePageTitle('Acasă')
   const { isAuthenticated } = useAuth()
 
   return (
@@ -20,12 +24,13 @@ export default function HomePage() {
           </span>
 
           <h1 className="mt-6 max-w-4xl text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
-            Învață mai clar. Exersează mai bine. Pregătește-te cu <span className="text-brand-600">ExamSense+</span>.
+            Învață mai clar. Exersează mai bine. Pregătește-te cu{' '}
+            <span className="text-brand-600">ExamSense+</span>.
           </h1>
 
           <p className="mt-6 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg">
-            Încarci cursuri sau materiale, sistemul extrage definiții, generează quiz-uri și îți urmărește progresul
-            într-un mod curat, modern și eficient.
+            Încarci cursuri sau materiale, sistemul extrage definiții, generează quiz-uri și îți
+            urmărește progresul într-un mod curat, modern și eficient.
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -58,7 +63,10 @@ export default function HomePage() {
               'Istoric și scoruri',
               'Dashboard cu puncte slabe',
             ].map((item) => (
-              <div key={item} className="rounded-2xl border border-slate-200/80 bg-slate-50/80 px-4 py-4 text-sm font-medium text-slate-700">
+              <div
+                key={item}
+                className="rounded-2xl border border-slate-200/80 bg-slate-50/80 px-4 py-4 text-sm font-medium text-slate-700"
+              >
                 {item}
               </div>
             ))}

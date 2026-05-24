@@ -2,13 +2,17 @@ from pathlib import Path
 from datetime import timedelta
 import os
 
-from dotenv import load_dotenv
 from corsheaders.defaults import default_headers
+from dotenv import load_dotenv
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# incarcam variabilele din fisierul .env
 load_dotenv(BASE_DIR / ".env")
 
 
+# setari generale de baza
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-insecure-secret-key")
 DEBUG = os.getenv("DJANGO_DEBUG", "True") == "True"
 
@@ -18,6 +22,7 @@ ALLOWED_HOSTS = os.getenv(
 ).split(",")
 
 
+# aici inregistram toate aplicatiile folosite in proiect
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -41,6 +46,7 @@ INSTALLED_APPS = [
 ]
 
 
+# aici definim middleware-urile folosite de proiect
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
@@ -56,6 +62,7 @@ MIDDLEWARE = [
 ROOT_URLCONF = "core.urls"
 
 
+# configuram sistemul de template-uri Django
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -71,9 +78,11 @@ TEMPLATES = [
     },
 ]
 
+
 WSGI_APPLICATION = "core.wsgi.application"
 
 
+# folosim SQLite pentru dezvoltare locala
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
@@ -82,6 +91,7 @@ DATABASES = {
 }
 
 
+# definim regulile de baza pentru parole
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
@@ -101,12 +111,14 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
+# setari de localizare
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
 
+# configuram fisierele statice si fisierele media incarcate de utilizatori
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
@@ -114,9 +126,11 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 
+# folosim modelul nostru custom de utilizator
 AUTH_USER_MODEL = "users.User"
 
 
+# permitem frontend-ului local sa comunice cu backend-ul
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
 ]
@@ -126,6 +140,7 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
 ]
 
 
+# avem incredere in frontend-ul local pentru cererile protejate cu csrf
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
 ]
@@ -134,6 +149,7 @@ CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = "Lax"
 
 
+# configuram cookie-urile folosite pentru autentificare
 AUTH_COOKIE_ACCESS = "access_token"
 AUTH_COOKIE_REFRESH = "refresh_token"
 AUTH_COOKIE_SAMESITE = "Lax"
@@ -143,6 +159,7 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 
 
+# aici configuram autentificarea si limitarile pentru API
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "users.authentication.CookieJWTAuthentication",
@@ -166,6 +183,7 @@ REST_FRAMEWORK = {
 }
 
 
+# configuram durata tokenurilor jwt
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
@@ -176,10 +194,12 @@ SIMPLE_JWT = {
 }
 
 
+# limitam dimensiunea maxima pentru upload
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 
 
+# activam cateva headere de securitate utile
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
@@ -187,6 +207,7 @@ SECURE_REFERRER_POLICY = "same-origin"
 SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 
 
+# daca nu suntem in debug, fortam folosirea setarilor pentru productie
 if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
@@ -203,6 +224,7 @@ else:
     AUTH_COOKIE_SECURE = False
 
 
+# configuram trimiterea emailurilor prin smtp
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = os.getenv("EMAIL_HOST", "")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))

@@ -1,18 +1,19 @@
-from django.db.models import Avg, Max, Min, Count
+from django.db.models import Avg, Count, Max, Min
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from documents.models import QuizAttempt, QuizAnswer, GeneratedQuestion, Document
+from documents.models import Document, GeneratedQuestion, QuizAnswer, QuizAttempt
 from .serializers import (
     LearningDashboardSerializer,
-    WeakConceptSerializer,
     RecommendationSerializer,
-    RetryQuizResponseSerializer
+    RetryQuizResponseSerializer,
+    WeakConceptSerializer,
 )
 
 
+# calculam numarul documentului raportat doar la utilizatorul curent
 def get_user_document_number(user, document_id):
     try:
         document_obj = Document.objects.get(id=document_id, user=user)
@@ -26,6 +27,7 @@ def get_user_document_number(user, document_id):
     )
 
 
+# calculam numarul attemptului raportat doar la utilizatorul curent
 def get_user_attempt_number(user, attempt_id):
     return (
         QuizAttempt.objects
@@ -34,6 +36,7 @@ def get_user_attempt_number(user, attempt_id):
     )
 
 
+# construim lista conceptelor la care utilizatorul greseste cel mai des
 def build_weak_concepts(user, limit=10):
     wrong_answers = (
         QuizAnswer.objects
@@ -42,7 +45,7 @@ def build_weak_concepts(user, limit=10):
         .values(
             "question__source_definition__concept",
             "question__document__id",
-            "question__document__file"
+            "question__document__file",
         )
         .annotate(wrong_count=Count("id"))
         .order_by("-wrong_count")
@@ -80,6 +83,7 @@ def build_weak_concepts(user, limit=10):
 class LearningDashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
+    # returnam statisticile principale pentru dashboardul utilizatorului
     def get(self, request):
         attempts = QuizAttempt.objects.filter(user=request.user).order_by("-completed_at")
         answers = QuizAnswer.objects.filter(attempt__user=request.user)
@@ -95,6 +99,7 @@ class LearningDashboardView(APIView):
         weak_concepts = build_weak_concepts(request.user, limit=5)
 
         recent_attempts = []
+
         for attempt in attempts[:5]:
             user_document_number = get_user_document_number(request.user, attempt.document.id)
             user_attempt_number = get_user_attempt_number(request.user, attempt.id)
@@ -107,7 +112,7 @@ class LearningDashboardView(APIView):
                 "document_file": attempt.document.file.url if attempt.document.file else None,
                 "score": attempt.score,
                 "total_questions": attempt.total_questions,
-                "completed_at": attempt.completed_at
+                "completed_at": attempt.completed_at,
             })
 
         response_data = {
@@ -118,7 +123,7 @@ class LearningDashboardView(APIView):
             "correct_answers": correct_answers,
             "wrong_answers": wrong_answers,
             "weak_concepts": weak_concepts,
-            "recent_attempts": recent_attempts
+            "recent_attempts": recent_attempts,
         }
 
         serializer = LearningDashboardSerializer(response_data)
@@ -128,18 +133,21 @@ class LearningDashboardView(APIView):
 class WeakConceptsView(APIView):
     permission_classes = [IsAuthenticated]
 
+    # returnam lista extinsa cu conceptele slabe ale utilizatorului
     def get(self, request):
         weak_concepts = build_weak_concepts(request.user, limit=20)
         serializer = WeakConceptSerializer(weak_concepts, many=True)
+
         return Response({
             "count": len(serializer.data),
-            "results": serializer.data
+            "results": serializer.data,
         })
 
 
 class RecommendationsView(APIView):
     permission_classes = [IsAuthenticated]
 
+    # construim recomandari simple pe baza numarului de greseli
     def get(self, request):
         weak_concepts = build_weak_concepts(request.user, limit=10)
 
@@ -168,13 +176,14 @@ class RecommendationsView(APIView):
 
         return Response({
             "count": len(serializer.data),
-            "results": serializer.data
+            "results": serializer.data,
         })
 
 
 class RetryQuizView(APIView):
     permission_classes = [IsAuthenticated]
 
+    # generam un quiz de recapitulare pe baza conceptelor la care utilizatorul greseste
     def post(self, request):
         weak_concepts = build_weak_concepts(request.user, limit=10)
         concept_names = [item["concept"] for item in weak_concepts]
@@ -183,14 +192,14 @@ class RetryQuizView(APIView):
             return Response({
                 "count": 0,
                 "questions": [],
-                "message": "Nu exista suficiente concepte gresite pentru un quiz de recapitulare."
+                "message": "Nu exista suficiente concepte gresite pentru un quiz de recapitulare.",
             })
 
         questions = (
             GeneratedQuestion.objects
             .filter(
                 document__user=request.user,
-                source_definition__concept__in=concept_names
+                source_definition__concept__in=concept_names,
             )
             .select_related("source_definition")
             .order_by("id")
@@ -212,7 +221,7 @@ class RetryQuizView(APIView):
                 "language": question.language,
                 "question_text": question.question_text,
                 "options": question.options,
-                "correct_answer": question.correct_answer
+                "correct_answer": question.correct_answer,
             })
 
             if len(question_list) >= 10:
@@ -220,7 +229,7 @@ class RetryQuizView(APIView):
 
         response_data = {
             "count": len(question_list),
-            "questions": question_list
+            "questions": question_list,
         }
 
         serializer = RetryQuizResponseSerializer(response_data)
