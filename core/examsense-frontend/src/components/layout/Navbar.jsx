@@ -11,6 +11,7 @@ import {
   Sparkles,
   Menu,
   X,
+  Shield,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useToast } from '../../hooks/useToast'
@@ -18,20 +19,24 @@ import MobileMenu from './MobileMenu'
 import ConfirmDialog from '../common/ConfirmDialog'
 import { secondaryButtonClass } from '../../utils/buttonClasses'
 
-const navItems = [
-  { to: '/documents', label: 'Documente', icon: FileText },
-  { to: '/dashboard', label: 'Progres', icon: BrainCircuit },
-  { to: '/quiz-history', label: 'Istoric', icon: History },
-  { to: '/recommendations', label: 'Recomandări', icon: Sparkles },
-  { to: '/profile', label: 'Profil', icon: UserCircle2 },
-]
-
 export default function Navbar() {
   const { user, isAuthenticated, logout } = useAuth()
   const { showToast } = useToast()
   const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false)
+
+  const navItems = [
+    { to: '/documents', label: 'Documente', icon: FileText },
+    { to: '/dashboard', label: 'Progres', icon: BrainCircuit },
+    { to: '/quiz-history', label: 'Istoric', icon: History },
+    { to: '/recommendations', label: 'Recomandări', icon: Sparkles },
+    { to: '/profile', label: 'Profil', icon: UserCircle2 },
+  ]
+
+  if (user?.is_staff) {
+    navItems.push({ to: '/admin-panel', label: 'Admin', icon: Shield })
+  }
 
   async function handleLogoutConfirmed() {
     await logout()

@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import AppShell from '../components/layout/AppShell'
 import ProtectedRoute from '../components/layout/ProtectedRoute'
+import ProtectedAdminRoute from '../components/layout/ProtectedAdminRoute'
 
 import HomePage from '../pages/HomePage'
 import NotFoundPage from '../pages/NotFoundPage'
@@ -25,6 +26,8 @@ import QuizPlayPage from '../pages/quiz/QuizPlayPage'
 import QuizResultPage from '../pages/quiz/QuizResultPage'
 import QuizHistoryPage from '../pages/quiz/QuizHistoryPage'
 import QuizAttemptDetailPage from '../pages/quiz/QuizAttemptDetailPage'
+
+import AdminDashboardPage from '../pages/admin/AdminDashboardPage'
 
 export default function AppRouter() {
   return (
@@ -142,6 +145,15 @@ export default function AppRouter() {
             <ProtectedRoute>
               <QuizAttemptDetailPage />
             </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin-panel"
+          element={
+            <ProtectedAdminRoute>
+              <AdminDashboardPage />
+            </ProtectedAdminRoute>
           }
         />
 
