@@ -24,23 +24,23 @@ import usePageTitle from '../../hooks/usePageTitle'
 const SCORE_COLORS = ['#6366f1', '#8b5cf6', '#06b6d4']
 const ANSWER_COLORS = ['#10b981', '#f43f5e']
 
-function ModeSection({ title, stats }) {
+function ModeSection({ title, stats, accent }) {
   return (
-    <SectionCard title={title}>
+    <SectionCard title={title} className="min-w-0">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <StatCard label="Quiz-uri" value={stats.total_attempts} />
-        <StatCard label="Scor mediu user" value={stats.average_score} />
-        <StatCard label="Scor maxim user" value={stats.best_score} />
-        <StatCard label="Scor mediu AI" value={stats.ai_average_score} />
-        <StatCard label="Scor maxim AI" value={stats.ai_best_score} />
+        <StatCard label="Quiz-uri" value={stats.total_attempts} accent={accent} />
+        <StatCard label="Scor mediu user" value={stats.average_score} accent={accent} />
+        <StatCard label="Scor maxim user" value={stats.best_score} accent={accent} />
+        <StatCard label="Scor mediu AI" value={stats.ai_average_score} accent={accent} />
+        <StatCard label="Scor maxim AI" value={stats.ai_best_score} accent={accent} />
       </div>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <StatCard label="Răspunsuri corecte" value={stats.correct_answers} />
-        <StatCard label="Răspunsuri greșite" value={stats.wrong_answers} />
-        <StatCard label="User wins" value={stats.user_wins} />
-        <StatCard label="AI wins" value={stats.ai_wins} />
-        <StatCard label="Ties" value={stats.ties} />
+        <StatCard label="Răspunsuri corecte" value={stats.correct_answers} accent="emerald" />
+        <StatCard label="Răspunsuri greșite" value={stats.wrong_answers} accent="rose" />
+        <StatCard label="User wins" value={stats.user_wins} accent="brand" />
+        <StatCard label="AI wins" value={stats.ai_wins} accent="violet" />
+        <StatCard label="Ties" value={stats.ties} accent="amber" />
       </div>
     </SectionCard>
   )
@@ -103,67 +103,87 @@ export default function DashboardPage() {
   return (
     <PageContainer>
       <div className="space-y-6">
-        <ModeSection title="Overall" stats={data.overall} />
-        <ModeSection title="Quiz-uri generate cu NLP" stats={data.nlp} />
-        <ModeSection title="Quiz-uri generate cu AI" stats={data.ai} />
+        <div className="rounded-[30px] border border-brand-100 bg-linear-to-r from-brand-50 via-violet-50 to-white p-6 shadow-sm">
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
+            Dashboard
+          </h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+            Vezi separat performanța pe quiz-uri generate cu NLP și AI, plus comparația cu solverul AI.
+          </p>
+        </div>
 
-        <div className="grid gap-6 xl:grid-cols-2">
+        <ModeSection title="Overall" stats={data.overall} accent="brand" />
+        <ModeSection title="Quiz-uri generate cu NLP" stats={data.nlp} accent="emerald" />
+        <ModeSection title="Quiz-uri generate cu AI" stats={data.ai} accent="violet" />
+
+        <div className="grid min-w-0 gap-6 xl:grid-cols-2">
           <SectionCard
             title="Comparatie scoruri"
             subtitle="Scorul mediu user vs AI și performanța maximă."
+            className="min-w-0"
           >
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={scoreChartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="name" stroke="#64748b" />
-                  <YAxis allowDecimals={true} stroke="#64748b" />
-                  <Tooltip />
-                  <Bar dataKey="value" radius={[10, 10, 0, 0]}>
-                    {scoreChartData.map((entry, index) => (
-                      <Cell
-                        key={`score-cell-${index}`}
-                        fill={SCORE_COLORS[index % SCORE_COLORS.length]}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            {scoreChartData.length > 0 && (
+              <div className="w-full min-w-0 overflow-hidden rounded-2xl">
+                <div className="h-72 w-full min-w-0 sm:h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={scoreChartData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis dataKey="name" stroke="#64748b" />
+                      <YAxis allowDecimals={true} stroke="#64748b" />
+                      <Tooltip />
+                      <Bar dataKey="value" radius={[10, 10, 0, 0]}>
+                        {scoreChartData.map((entry, index) => (
+                          <Cell
+                            key={`score-cell-${index}`}
+                            fill={SCORE_COLORS[index % SCORE_COLORS.length]}
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
           </SectionCard>
 
           <SectionCard
             title="Răspunsuri corecte vs greșite"
             subtitle="Imagine rapidă asupra performanței tale generale."
+            className="min-w-0"
           >
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={answersChartData}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={70}
-                    outerRadius={110}
-                    paddingAngle={3}
-                  >
-                    {answersChartData.map((entry, index) => (
-                      <Cell
-                        key={`answers-cell-${index}`}
-                        fill={ANSWER_COLORS[index % ANSWER_COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+            {answersChartData.length > 0 && (
+              <div className="w-full min-w-0 overflow-hidden rounded-2xl">
+                <div className="h-72 w-full min-w-0 sm:h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={answersChartData}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={3}
+                      >
+                        {answersChartData.map((entry, index) => (
+                          <Cell
+                            key={`answers-cell-${index}`}
+                            fill={ANSWER_COLORS[index % ANSWER_COLORS.length]}
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
           </SectionCard>
         </div>
 
         <SectionCard
           title="Concepte slabe"
           subtitle="Conceptele unde ai acumulat cele mai multe greșeli."
+          className="min-w-0"
         >
           {data.weak_concepts.length === 0 ? (
             <EmptyState
@@ -175,7 +195,7 @@ export default function DashboardPage() {
               {data.weak_concepts.map((item, index) => (
                 <div
                   key={`${item.concept}-${index}`}
-                  className="rounded-2xl border border-slate-200 bg-white p-4"
+                  className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
                 >
                   <p className="text-lg font-semibold text-slate-950">{item.concept}</p>
                   <p className="mt-2 text-sm text-slate-500">Greșit de {item.wrong_count} ori</p>
@@ -188,6 +208,7 @@ export default function DashboardPage() {
         <SectionCard
           title="Ultimele încercări"
           subtitle="Cele mai recente quiz-uri finalizate, cu comparație user vs AI."
+          className="min-w-0"
         >
           {data.recent_attempts.length === 0 ? (
             <EmptyState
@@ -199,10 +220,10 @@ export default function DashboardPage() {
               {data.recent_attempts.map((attempt) => (
                 <div
                   key={attempt.attempt_id}
-                  className="rounded-2xl border border-slate-200 bg-white p-4"
+                  className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
                 >
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="text-sm text-slate-500">
                           Attempt #{attempt.user_attempt_number}

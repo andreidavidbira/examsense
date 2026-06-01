@@ -99,6 +99,7 @@ class AIQuizAttemptSerializer(serializers.ModelSerializer):
             "model_name",
             "score",
             "total_questions",
+            "time_spent_seconds",
             "completed_at",
             "answers",
         ]
@@ -125,6 +126,7 @@ class QuizAttemptSerializer(serializers.ModelSerializer):
             "user_document_number",
             "score",
             "total_questions",
+            "time_spent_seconds",
             "completed_at",
             "answers",
             "ai_attempt",
@@ -215,6 +217,7 @@ class SubmitQuizAnswerInputSerializer(serializers.Serializer):
 
 class SubmitQuizInputSerializer(serializers.Serializer):
     question_set_id = serializers.IntegerField()
+    elapsed_seconds = serializers.IntegerField(required=False, min_value=0)
     answers = SubmitQuizAnswerInputSerializer(many=True)
 
 
@@ -243,10 +246,12 @@ class SubmitQuizResponseSerializer(serializers.Serializer):
     user_document_number = serializers.IntegerField()
     score = serializers.IntegerField()
     total_questions = serializers.IntegerField()
+    user_time_spent_seconds = serializers.IntegerField()
     results = SubmitQuizResultItemSerializer(many=True)
     ai_score = serializers.IntegerField()
     ai_total_questions = serializers.IntegerField()
     ai_model_name = serializers.CharField()
+    ai_time_spent_seconds = serializers.IntegerField()
     ai_results = SubmitQuizAIResultItemSerializer(many=True)
 
 

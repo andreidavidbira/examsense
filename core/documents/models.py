@@ -88,7 +88,7 @@ class GeneratedQuestion(models.Model):
         on_delete=models.CASCADE,
         related_name="questions",
         null=True,
-        blank=True
+        blank=True,
     )
     source_definition = models.ForeignKey(
         ExtractedDefinition,
@@ -129,10 +129,11 @@ class QuizAttempt(models.Model):
         on_delete=models.CASCADE,
         related_name="user_attempts",
         null=True,
-        blank=True
+        blank=True,
     )
     score = models.IntegerField(default=0)
     total_questions = models.IntegerField(default=0)
+    time_spent_seconds = models.PositiveIntegerField(default=0)
     completed_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -166,6 +167,7 @@ class AIQuizAttempt(models.Model):
     model_name = models.CharField(max_length=100, default="")
     score = models.IntegerField(default=0)
     total_questions = models.IntegerField(default=0)
+    time_spent_seconds = models.PositiveIntegerField(default=0)
     completed_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

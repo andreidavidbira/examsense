@@ -11,6 +11,7 @@ import {
   primaryButtonClass,
   secondaryButtonClass,
 } from '../../utils/buttonClasses'
+import { formatDuration } from '../../utils/timeFormat'
 
 function modeBadgeClass(mode) {
   return mode === 'ai'
@@ -30,12 +31,21 @@ export default function QuizPlayPage() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [answers, setAnswers] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [startedAt, setStartedAt] = useState(null)
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
 
   useEffect(() => {
+    if (!questionSetId || questionSetId === 'undefined') {
+      setError('Nu există un set de întrebări valid pentru acest quiz.')
+      setLoading(false)
+      return
+    }
+
     async function fetchQuestionSet() {
       try {
         const response = await api.get(`/documents/question-sets/${questionSetId}/quiz/`)
         setQuizData(response.data)
+        setStartedAt(Date.now())
       } catch {
         setError('Nu am putut încărca quiz-ul pentru acest set de întrebări.')
       } finally {
@@ -45,6 +55,16 @@ export default function QuizPlayPage() {
 
     fetchQuestionSet()
   }, [questionSetId])
+
+  useEffect(() => {
+    if (!startedAt) return
+
+    const timer = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000))
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [startedAt])
 
   const questions = useMemo(() => {
     return quizData?.questions || []
@@ -85,6 +105,7 @@ export default function QuizPlayPage() {
     try {
       const payload = {
         question_set_id: Number(questionSetId),
+        elapsed_seconds: elapsedSeconds,
         answers: questions.map((question) => ({
           question_id: question.id,
           selected_answer: answers[question.id],
@@ -92,7 +113,7 @@ export default function QuizPlayPage() {
       }
 
       const response = await api.post('/documents/submit-quiz/', payload, {
-        timeout: 120000, // 2 minute timeout pentru generare AI
+        timeout: 120000,
       })
 
       navigate('/quiz-result', {
@@ -149,9 +170,14 @@ export default function QuizPlayPage() {
               </span>
             </div>
 
-            <p className="text-sm font-medium text-slate-700">
-              Răspunse: {answeredCount} / {questions.length}
-            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="text-sm font-medium text-slate-700">
+                Răspunse: {answeredCount} / {questions.length}
+              </p>
+              <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+                Timp: {formatDuration(elapsedSeconds)}
+              </span>
+            </div>
           </div>
 
           <div className="mb-4">

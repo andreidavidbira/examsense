@@ -12,6 +12,7 @@ import {
   primaryButtonClass,
   secondaryButtonClass,
 } from '../../utils/buttonClasses'
+import { formatDuration } from '../../utils/timeFormat'
 
 function compareResultMap(aiResults = []) {
   const map = {}
@@ -62,14 +63,17 @@ export default function QuizResultPage() {
     setIsGenerating(true)
 
     try {
-      const response = await api.post(`/documents/${result.document_id}/regenerate-questions/`, {
-        difficulty: options.difficulty,
-        max_questions: options.max_questions,
-        generation_mode: options.generation_mode,
-      }, {
-        timeout: 120000, // 2 minute timeout pentru generare AI
-      }
-    )
+      const response = await api.post(
+        `/documents/${result.document_id}/regenerate-questions/`,
+        {
+          difficulty: options.difficulty,
+          max_questions: options.max_questions,
+          generation_mode: options.generation_mode,
+        },
+        {
+          timeout: 120000,
+        }
+      )
 
       showToast('A fost generat un nou set de întrebări.', 'success')
       navigate(`/quiz/${response.data.question_set_id}`)
@@ -133,7 +137,7 @@ export default function QuizResultPage() {
             </span>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-2xl bg-slate-50 p-4">
               <p className="text-sm text-slate-500">Attempt</p>
               <p className="mt-2 text-2xl font-semibold text-slate-950">
@@ -153,12 +157,18 @@ export default function QuizResultPage() {
               <p className="mt-2 text-2xl font-semibold text-slate-950">
                 {result.score} / {result.total_questions}
               </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Timp: {formatDuration(result.user_time_spent_seconds)}
+              </p>
             </div>
 
             <div className="rounded-2xl bg-slate-50 p-4">
               <p className="text-sm text-slate-500">Scor AI</p>
               <p className="mt-2 text-2xl font-semibold text-slate-950">
                 {result.ai_score} / {result.ai_total_questions}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Timp: {formatDuration(result.ai_time_spent_seconds)}
               </p>
               <p className="mt-1 text-xs text-slate-500">{result.ai_model_name}</p>
             </div>

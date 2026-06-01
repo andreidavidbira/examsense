@@ -1,25 +1,42 @@
-import { motion } from 'framer-motion'
-
-// folosim acest card ca container standard pentru sectiunile principale din pagini
-export default function SectionCard({ title, subtitle, rightSlot, children }) {
+export default function SectionCard({
+  title,
+  subtitle,
+  rightSlot,
+  children,
+  className = '',
+  contentClassName = '',
+}) {
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35 }}
-      className="rounded-[28px] border border-white/70 bg-white/80 p-5 shadow-(--shadow-soft) backdrop-blur-xl sm:p-6 lg:p-8"
+    <section
+      className={`overflow-hidden rounded-[30px] border border-slate-200/80 bg-white/95 shadow-sm backdrop-blur ${className}`}
     >
       {(title || subtitle || rightSlot) && (
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            {title && <h2 className="text-2xl font-semibold tracking-tight text-slate-950">{title}</h2>}
-            {subtitle && <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">{subtitle}</p>}
+        <div className="border-b border-slate-100 bg-linear-to-r from-white via-slate-50/70 to-white px-5 py-5 sm:px-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0">
+              {title && (
+                <h2 className="text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl">
+                  {title}
+                </h2>
+              )}
+
+              {subtitle && (
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+                  {subtitle}
+                </p>
+              )}
+            </div>
+
+            {rightSlot && (
+              <div className="flex shrink-0 flex-wrap gap-2 lg:justify-end">
+                {rightSlot}
+              </div>
+            )}
           </div>
-          {rightSlot}
         </div>
       )}
 
-      {children}
-    </motion.section>
+      <div className={`px-5 py-5 sm:px-6 ${contentClassName}`}>{children}</div>
+    </section>
   )
 }

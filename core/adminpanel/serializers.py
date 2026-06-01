@@ -155,12 +155,14 @@ class AdminAttemptSerializer(serializers.Serializer):
     email = serializers.CharField()
     user_attempt_number = serializers.IntegerField()
     user_document_number = serializers.IntegerField()
-    question_set_id = serializers.IntegerField()
+    question_set_id = serializers.IntegerField(allow_null=True)
     generation_mode = serializers.CharField()
     difficulty = serializers.CharField()
     score = serializers.IntegerField()
     total_questions = serializers.IntegerField()
     ai_score = serializers.IntegerField(allow_null=True, required=False)
+    time_spent_seconds = serializers.IntegerField(required=False)
+    ai_time_spent_seconds = serializers.IntegerField(required=False)
     completed_at = serializers.DateTimeField()
 
 

@@ -1,3 +1,5 @@
+import time
+
 from django.conf import settings
 from django.db.models import Avg, Count, Max, Min
 from django.shortcuts import get_object_or_404
@@ -301,17 +303,14 @@ class UploadDocumentView(APIView):
         difficulty = request.data.get("difficulty", "medium")
         max_q = int(request.data.get("max_questions", 10))
 
-        document = Document.objects.create(
-            user=request.user,
-            file=file,
-        )
-
+        # extragem textul INAINTE de a salva documentul
         try:
             if filename.endswith(".pdf"):
                 text = extract_text_from_pdf(file)
             else:
                 text = extract_text_from_docx(file)
         except Exception as e:
+            print("TEXT EXTRACTION ERROR:", repr(e))
             return Response({
                 "error": "Eroare la extragerea textului",
                 "details": str(e),
@@ -321,12 +320,22 @@ class UploadDocumentView(APIView):
         if len(text) > max_length:
             text = text[:max_length]
 
-        document.extracted_text = text
-        document.save()
+        # resetam pointerul fisierului inainte de salvare
+        try:
+            file.seek(0)
+        except Exception:
+            pass
+
+        document = Document.objects.create(
+            user=request.user,
+            file=file,
+            extracted_text=text,
+        )
 
         try:
             ensure_nlp_definitions(document)
         except Exception as e:
+            print("NLP PROCESSING ERROR:", repr(e))
             return Response({
                 "error": "Eroare la procesarea NLP a textului",
                 "details": str(e),
@@ -340,6 +349,7 @@ class UploadDocumentView(APIView):
                 max_q=max_q,
             )
         except Exception as e:
+            print("QUESTION GENERATION ERROR:", repr(e))
             return Response({
                 "error": "Eroare la generarea intrebarilor",
                 "details": str(e),
@@ -474,6 +484,7 @@ class SubmitQuizView(APIView):
 
         question_set_id = input_serializer.validated_data["question_set_id"]
         answers = input_serializer.validated_data["answers"]
+        elapsed_seconds = input_serializer.validated_data.get("elapsed_seconds", 0)
 
         question_set = get_object_or_404(
             QuestionSet.objects.select_related("document"),
@@ -493,6 +504,7 @@ class SubmitQuizView(APIView):
             question_set=question_set,
             score=0,
             total_questions=questions.count(),
+            time_spent_seconds=max(0, int(elapsed_seconds)),
         )
 
         score = 0
@@ -540,60 +552,83 @@ class SubmitQuizView(APIView):
         attempt.total_questions = questions.count()
         attempt.save()
 
-        ai_answers_payload = solve_quiz_with_ai(list(questions))
-
-        ai_attempt = AIQuizAttempt.objects.create(
-            quiz_attempt=attempt,
-            model_name=settings.OPENAI_SOLVER_MODEL,
-            score=0,
-            total_questions=questions.count(),
-        )
-
         ai_score = 0
         ai_results = []
+        ai_model_name = "unavailable"
+        ai_time_spent_seconds = 0
 
-        for ai_answer_data in ai_answers_payload:
-            question_id = ai_answer_data.get("question_id")
-            selected_answer = ai_answer_data.get("selected_answer")
+        try:
+            ai_start = time.perf_counter()
+            ai_answers_payload = solve_quiz_with_ai(list(questions))
+            ai_elapsed = time.perf_counter() - ai_start
+            ai_time_spent_seconds = max(0, round(ai_elapsed))
 
-            if question_id not in question_map:
-                continue
-
-            question = question_map[question_id]
-            correct_answer = question.correct_answer
-            is_correct = False
-
-            if question.question_type == "true_false":
-                selected_str = str(selected_answer).strip().lower()
-                correct_str = str(correct_answer).strip().lower()
-                is_correct = selected_str == correct_str
-            else:
-                is_correct = str(selected_answer).strip() == str(correct_answer).strip()
-
-            if is_correct:
-                ai_score += 1
-
-            AIQuizAnswer.objects.create(
-                ai_attempt=ai_attempt,
-                question=question,
-                selected_answer=str(selected_answer),
-                is_correct=is_correct,
+            ai_attempt = AIQuizAttempt.objects.create(
+                quiz_attempt=attempt,
+                model_name=settings.OPENAI_SOLVER_MODEL,
+                score=0,
+                total_questions=questions.count(),
+                time_spent_seconds=ai_time_spent_seconds,
             )
 
-            ai_results.append({
-                "question_id": question.id,
-                "question": question.question_text,
-                "ai_selected_answer": selected_answer,
-                "correct_answer": correct_answer,
-                "is_correct": is_correct,
-            })
+            for ai_answer_data in ai_answers_payload:
+                question_id = ai_answer_data.get("question_id")
+                selected_answer = ai_answer_data.get("selected_answer")
 
-        ai_attempt.score = ai_score
-        ai_attempt.total_questions = questions.count()
-        ai_attempt.save()
+                if question_id not in question_map:
+                    continue
 
-        user_document_number = get_user_document_number(request.user, document.id)
-        user_attempt_number = get_user_attempt_number(request.user, attempt.id)
+                question = question_map[question_id]
+                correct_answer = question.correct_answer
+                is_correct = False
+
+                if question.question_type == "true_false":
+                    selected_str = str(selected_answer).strip().lower()
+                    correct_str = str(correct_answer).strip().lower()
+                    is_correct = selected_str == correct_str
+                else:
+                    is_correct = str(selected_answer).strip() == str(correct_answer).strip()
+
+                if is_correct:
+                    ai_score += 1
+
+                AIQuizAnswer.objects.create(
+                    ai_attempt=ai_attempt,
+                    question=question,
+                    selected_answer=str(selected_answer),
+                    is_correct=is_correct,
+                )
+
+                ai_results.append({
+                    "question_id": question.id,
+                    "question": question.question_text,
+                    "ai_selected_answer": selected_answer,
+                    "correct_answer": correct_answer,
+                    "is_correct": is_correct,
+                })
+
+            ai_attempt.score = ai_score
+            ai_attempt.total_questions = questions.count()
+            ai_attempt.save()
+            ai_model_name = settings.OPENAI_SOLVER_MODEL
+
+        except Exception as e:
+            print("AI SOLVER ERROR:", repr(e))
+            ai_score = 0
+            ai_results = []
+            ai_model_name = "unavailable"
+            ai_time_spent_seconds = 0
+
+        user_document_number = (
+            Document.objects
+            .filter(user=request.user, id__lte=document.id)
+            .count()
+        )
+        user_attempt_number = (
+            QuizAttempt.objects
+            .filter(user=request.user, id__lte=attempt.id)
+            .count()
+        )
 
         response_data = {
             "attempt_id": attempt.id,
@@ -604,10 +639,12 @@ class SubmitQuizView(APIView):
             "user_document_number": user_document_number,
             "score": score,
             "total_questions": attempt.total_questions,
+            "user_time_spent_seconds": attempt.time_spent_seconds,
             "results": results,
             "ai_score": ai_score,
             "ai_total_questions": questions.count(),
-            "ai_model_name": settings.OPENAI_SOLVER_MODEL,
+            "ai_model_name": ai_model_name,
+            "ai_time_spent_seconds": ai_time_spent_seconds,
             "ai_results": ai_results,
         }
 

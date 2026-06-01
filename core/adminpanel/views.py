@@ -450,6 +450,8 @@ class AdminAttemptsListView(APIView):
                 "total_questions": attempt.total_questions,
                 "ai_score": ai_attempt.score if ai_attempt else None,
                 "completed_at": attempt.completed_at,
+                "time_spent_seconds": attempt.time_spent_seconds,
+                "ai_time_spent_seconds": ai_attempt.time_spent_seconds if ai_attempt else 0,
             })
 
         serializer = AdminAttemptSerializer(results, many=True)

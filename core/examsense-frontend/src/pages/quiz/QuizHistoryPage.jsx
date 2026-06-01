@@ -12,6 +12,7 @@ import {
   primaryButtonClass,
   secondaryButtonClass,
 } from '../../utils/buttonClasses'
+import { formatDuration } from '../../utils/timeFormat'
 
 function modeBadgeClass(mode) {
   return mode === 'ai'
@@ -61,13 +62,17 @@ export default function QuizHistoryPage() {
     try {
       setIsGenerating(true)
 
-      const response = await api.post(`/documents/${selectedDocumentId}/regenerate-questions/`, {
-        difficulty: options.difficulty,
-        max_questions: options.max_questions,
-        generation_mode: options.generation_mode,
-      }, {
-        timeout: 120000, // 2 minute timeout pentru generare AI
-      })
+      const response = await api.post(
+        `/documents/${selectedDocumentId}/regenerate-questions/`,
+        {
+          difficulty: options.difficulty,
+          max_questions: options.max_questions,
+          generation_mode: options.generation_mode,
+        },
+        {
+          timeout: 120000,
+        }
+      )
 
       showToast('A fost generat un nou set de întrebări.', 'success')
       navigate(`/quiz/${response.data.question_set_id}`)
@@ -128,10 +133,10 @@ export default function QuizHistoryPage() {
             {data.results.map((attempt) => (
               <div
                 key={attempt.id}
-                className="rounded-2xl border border-slate-200 bg-white p-4 transition hover:shadow-sm"
+                className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-brand-200 hover:shadow-md"
               >
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                  <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm text-slate-500">
                         Attempt #{attempt.user_attempt_number}
@@ -141,27 +146,39 @@ export default function QuizHistoryPage() {
                       </span>
                     </div>
 
-                    <p className="mt-1 text-base font-semibold text-slate-950">
+                    <p className="mt-2 text-base font-semibold text-slate-950">
                       Document #{attempt.user_document_number}
                     </p>
-                    <p className="mt-2 text-sm text-slate-500">
-                      {new Date(attempt.completed_at).toLocaleString()}
-                    </p>
+
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      <p className="text-sm text-slate-500">
+                        {new Date(attempt.completed_at).toLocaleString()}
+                      </p>
+                      <p className="text-sm text-slate-500">
+                        Timp user: {formatDuration(attempt.time_spent_seconds)}
+                      </p>
+
+                      {attempt.ai_attempt && (
+                        <p className="text-sm text-slate-500">
+                          Timp AI: {formatDuration(attempt.ai_attempt.time_spent_seconds)}
+                        </p>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="flex flex-col gap-3 lg:items-end">
-                    <div className="text-right">
+                  <div className="flex w-full flex-col gap-3 xl:w-auto xl:items-end">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 xl:text-right">
                       <p className="text-base font-semibold text-slate-950">
                         User: {attempt.score} / {attempt.total_questions}
                       </p>
                       {attempt.ai_attempt && (
-                        <p className="text-sm text-slate-500">
+                        <p className="mt-1 text-sm text-slate-500">
                           AI: {attempt.ai_attempt.score} / {attempt.ai_attempt.total_questions}
                         </p>
                       )}
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
+                    <div className="grid gap-2 sm:grid-cols-3 xl:flex">
                       <Link
                         to={`/quiz-history/${attempt.id}`}
                         className={secondaryButtonClass}
@@ -169,12 +186,14 @@ export default function QuizHistoryPage() {
                         Detalii
                       </Link>
 
-                      <button
-                        onClick={() => handleReplaySame(attempt.question_set_id)}
-                        className={secondaryButtonClass}
-                      >
-                        Reia același quiz
-                      </button>
+                      {attempt.question_set_id && (
+                        <button
+                          onClick={() => handleReplaySame(attempt.question_set_id)}
+                          className={secondaryButtonClass}
+                        >
+                          Reia același quiz
+                        </button>
+                      )}
 
                       <button
                         onClick={() => openGenerateDialog(attempt.document, attempt.generation_mode)}
