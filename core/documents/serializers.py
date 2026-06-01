@@ -1,15 +1,17 @@
 from rest_framework import serializers
 
 from .models import (
+    AIQuizAnswer,
+    AIQuizAttempt,
     Document,
     ExtractedDefinition,
     GeneratedQuestion,
+    QuestionSet,
     QuizAnswer,
     QuizAttempt,
 )
 
 
-# serializam definitiile extrase din document
 class ExtractedDefinitionSerializer(serializers.ModelSerializer):
     class Meta:
         model = ExtractedDefinition
@@ -20,16 +22,20 @@ class ExtractedDefinitionSerializer(serializers.ModelSerializer):
             "pattern",
             "language",
             "sentence",
+            "generation_mode",
             "created_at",
         ]
 
 
-# serializam intrebarile generate pentru quiz
 class GeneratedQuestionSerializer(serializers.ModelSerializer):
+    question_set_id = serializers.IntegerField(source="question_set.id", read_only=True)
+
     class Meta:
         model = GeneratedQuestion
         fields = [
             "id",
+            "question_set_id",
+            "generation_mode",
             "question_type",
             "language",
             "question_text",
@@ -39,7 +45,24 @@ class GeneratedQuestionSerializer(serializers.ModelSerializer):
         ]
 
 
-# serializam raspunsurile unui utilizator impreuna cu intrebarea asociata
+class QuestionSetSerializer(serializers.ModelSerializer):
+    questions_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = QuestionSet
+        fields = [
+            "id",
+            "generation_mode",
+            "difficulty",
+            "max_questions",
+            "questions_count",
+            "created_at",
+        ]
+
+    def get_questions_count(self, obj):
+        return obj.questions.count()
+
+
 class QuizAnswerSerializer(serializers.ModelSerializer):
     question = GeneratedQuestionSerializer(read_only=True)
 
@@ -53,17 +76,49 @@ class QuizAnswerSerializer(serializers.ModelSerializer):
         ]
 
 
-# serializam un attempt complet, inclusiv numerotarea raportata la utilizator
+class AIQuizAnswerSerializer(serializers.ModelSerializer):
+    question = GeneratedQuestionSerializer(read_only=True)
+
+    class Meta:
+        model = AIQuizAnswer
+        fields = [
+            "id",
+            "question",
+            "selected_answer",
+            "is_correct",
+        ]
+
+
+class AIQuizAttemptSerializer(serializers.ModelSerializer):
+    answers = AIQuizAnswerSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = AIQuizAttempt
+        fields = [
+            "id",
+            "model_name",
+            "score",
+            "total_questions",
+            "completed_at",
+            "answers",
+        ]
+
+
 class QuizAttemptSerializer(serializers.ModelSerializer):
     document_file = serializers.SerializerMethodField()
     user_document_number = serializers.SerializerMethodField()
     user_attempt_number = serializers.SerializerMethodField()
+    generation_mode = serializers.CharField(source="question_set.generation_mode", read_only=True)
+    question_set_id = serializers.IntegerField(source="question_set.id", read_only=True)
     answers = QuizAnswerSerializer(many=True, read_only=True)
+    ai_attempt = AIQuizAttemptSerializer(read_only=True)
 
     class Meta:
         model = QuizAttempt
         fields = [
             "id",
+            "question_set_id",
+            "generation_mode",
             "user_attempt_number",
             "document",
             "document_file",
@@ -72,15 +127,14 @@ class QuizAttemptSerializer(serializers.ModelSerializer):
             "total_questions",
             "completed_at",
             "answers",
+            "ai_attempt",
         ]
 
-    # intoarcem url-ul fisierului asociat documentului
     def get_document_file(self, obj):
         if obj.document and obj.document.file:
             return obj.document.file.url
         return None
 
-    # calculam numarul documentului doar in raport cu utilizatorul curent
     def get_user_document_number(self, obj):
         if not obj.document:
             return None
@@ -91,7 +145,6 @@ class QuizAttemptSerializer(serializers.ModelSerializer):
             .count()
         )
 
-    # calculam numarul attemptului doar in raport cu utilizatorul curent
     def get_user_attempt_number(self, obj):
         return (
             QuizAttempt.objects
@@ -100,7 +153,6 @@ class QuizAttemptSerializer(serializers.ModelSerializer):
         )
 
 
-# serializam forma simplificata a documentului pentru lista
 class DocumentListSerializer(serializers.ModelSerializer):
     user_document_number = serializers.SerializerMethodField()
 
@@ -121,10 +173,11 @@ class DocumentListSerializer(serializers.ModelSerializer):
         )
 
 
-# serializam documentul complet impreuna cu definitiile si intrebarile generate
 class DocumentDetailSerializer(serializers.ModelSerializer):
     definitions = ExtractedDefinitionSerializer(many=True, read_only=True)
     generated_questions = GeneratedQuestionSerializer(many=True, read_only=True)
+    question_sets = QuestionSetSerializer(many=True, read_only=True)
+    latest_question_set_id = serializers.SerializerMethodField()
     user_document_number = serializers.SerializerMethodField()
 
     class Meta:
@@ -137,6 +190,8 @@ class DocumentDetailSerializer(serializers.ModelSerializer):
             "uploaded_at",
             "definitions",
             "generated_questions",
+            "question_sets",
+            "latest_question_set_id",
         ]
 
     def get_user_document_number(self, obj):
@@ -146,20 +201,23 @@ class DocumentDetailSerializer(serializers.ModelSerializer):
             .count()
         )
 
+    def get_latest_question_set_id(self, obj):
+        latest_set = obj.question_sets.order_by("-created_at").first()
+        if not latest_set:
+            return None
+        return latest_set.id
 
-# validam fiecare raspuns trimis la quiz
+
 class SubmitQuizAnswerInputSerializer(serializers.Serializer):
     question_id = serializers.IntegerField()
     selected_answer = serializers.JSONField()
 
 
-# validam payload-ul complet pentru trimiterea unui quiz
 class SubmitQuizInputSerializer(serializers.Serializer):
-    document_id = serializers.IntegerField()
+    question_set_id = serializers.IntegerField()
     answers = SubmitQuizAnswerInputSerializer(many=True)
 
 
-# definim forma fiecarui rezultat individual din raspunsul final
 class SubmitQuizResultItemSerializer(serializers.Serializer):
     question_id = serializers.IntegerField()
     question = serializers.CharField()
@@ -168,30 +226,51 @@ class SubmitQuizResultItemSerializer(serializers.Serializer):
     is_correct = serializers.BooleanField()
 
 
-# definim forma raspunsului trimis dupa finalizarea quizului
+class SubmitQuizAIResultItemSerializer(serializers.Serializer):
+    question_id = serializers.IntegerField()
+    question = serializers.CharField()
+    ai_selected_answer = serializers.JSONField()
+    correct_answer = serializers.CharField()
+    is_correct = serializers.BooleanField()
+
+
 class SubmitQuizResponseSerializer(serializers.Serializer):
     attempt_id = serializers.IntegerField()
+    question_set_id = serializers.IntegerField()
+    generation_mode = serializers.CharField()
     user_attempt_number = serializers.IntegerField()
     document_id = serializers.IntegerField()
     user_document_number = serializers.IntegerField()
     score = serializers.IntegerField()
     total_questions = serializers.IntegerField()
     results = SubmitQuizResultItemSerializer(many=True)
+    ai_score = serializers.IntegerField()
+    ai_total_questions = serializers.IntegerField()
+    ai_model_name = serializers.CharField()
+    ai_results = SubmitQuizAIResultItemSerializer(many=True)
 
 
-# serializam un concept la care utilizatorul a gresit frecvent
 class QuizStatsConceptSerializer(serializers.Serializer):
     concept = serializers.CharField()
     wrong_count = serializers.IntegerField()
 
 
-# serializam statisticile generale pentru pagina de progres
-class QuizStatsResponseSerializer(serializers.Serializer):
+class ModeStatsSerializer(serializers.Serializer):
     total_attempts = serializers.IntegerField()
-    total_answers = serializers.IntegerField()
     correct_answers = serializers.IntegerField()
     wrong_answers = serializers.IntegerField()
     average_score = serializers.FloatField()
     best_score = serializers.IntegerField()
     worst_score = serializers.IntegerField()
+    ai_average_score = serializers.FloatField()
+    ai_best_score = serializers.IntegerField()
+    ai_wins = serializers.IntegerField()
+    user_wins = serializers.IntegerField()
+    ties = serializers.IntegerField()
+
+
+class QuizStatsResponseSerializer(serializers.Serializer):
+    overall = ModeStatsSerializer()
+    nlp = ModeStatsSerializer()
+    ai = ModeStatsSerializer()
     most_wrong_concepts = QuizStatsConceptSerializer(many=True)

@@ -234,5 +234,16 @@ EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True") == "True"
 EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "False") == "True"
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER)
 
+# configuram OpenAI
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+
+# modelul care citeste documentul si genereaza definitii + intrebari
+OPENAI_QUESTION_MODEL = os.getenv("OPENAI_QUESTION_MODEL", "gpt-5.4-mini")
+
+# modelul separat care rezolva quizul
+OPENAI_SOLVER_MODEL = os.getenv("OPENAI_SOLVER_MODEL", "gpt-5.4-mini")
+
+# limitare simpla pentru a nu trimite documente foarte mari dintr-o singura cerere
+OPENAI_INPUT_MAX_CHARS = int(os.getenv("OPENAI_INPUT_MAX_CHARS", "60000"))
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

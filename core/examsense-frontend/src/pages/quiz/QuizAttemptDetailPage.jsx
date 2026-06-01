@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import api from '../../api/axios'
@@ -13,6 +13,12 @@ import {
   secondaryButtonClass,
 } from '../../utils/buttonClasses'
 
+function modeBadgeClass(mode) {
+  return mode === 'ai'
+    ? 'rounded-full bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700'
+    : 'rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700'
+}
+
 export default function QuizAttemptDetailPage() {
   usePageTitle('Detalii încercare quiz')
 
@@ -26,7 +32,6 @@ export default function QuizAttemptDetailPage() {
   const [isGenerating, setIsGenerating] = useState(false)
 
   useEffect(() => {
-    // incarcam toate detaliile pentru attemptul selectat
     async function fetchAttempt() {
       try {
         const response = await api.get(`/documents/quiz-history/${attemptId}/`)
@@ -39,26 +44,39 @@ export default function QuizAttemptDetailPage() {
     fetchAttempt()
   }, [attemptId])
 
-  // reluam exact quiz-ul deja generat pentru documentul acestui attempt
+  const aiAnswerMap = useMemo(() => {
+    const map = {}
+    const aiAnswers = data?.ai_attempt?.answers || []
+
+    aiAnswers.forEach((answer) => {
+      map[answer.question.id] = answer
+    })
+
+    return map
+  }, [data])
+
   function handleReplaySameQuiz() {
     if (!data) return
-    navigate(`/documents/${data.document}/quiz`)
+    navigate(`/quiz/${data.question_set_id}`)
   }
 
-  // generam un nou set de intrebari pentru documentul asociat attemptului
   async function handleGenerateNewQuiz(options) {
     if (!data) return
 
     try {
       setIsGenerating(true)
 
-      await api.post(`/documents/${data.document}/regenerate-questions/`, {
+      const response = await api.post(`/documents/${data.document}/regenerate-questions/`, {
         difficulty: options.difficulty,
         max_questions: options.max_questions,
-      })
+        generation_mode: options.generation_mode,
+      },
+    {      timeout: 120000, // 2 minute timeout pentru generare AI
+      }
+    )
 
       showToast('A fost generat un nou set de întrebări.', 'success')
-      navigate(`/documents/${data.document}/quiz`)
+      navigate(`/quiz/${response.data.question_set_id}`)
     } catch {
       showToast('Nu am putut genera un nou quiz.', 'error')
     } finally {
@@ -90,11 +108,12 @@ export default function QuizAttemptDetailPage() {
       <QuizOptionsDialog
         open={quizOptionsOpen}
         title="Generează alt quiz"
-        description="Alege dificultatea și numărul de întrebări pentru noul quiz."
+        description="Alege metoda, dificultatea și numărul de întrebări pentru noul quiz."
         confirmText="Generează"
         cancelText="Anulează"
         initialDifficulty="medium"
         initialMaxQuestions={10}
+        initialGenerationMode={data.generation_mode || 'nlp'}
         isSubmitting={isGenerating}
         onConfirm={handleGenerateNewQuiz}
         onCancel={() => setQuizOptionsOpen(false)}
@@ -103,7 +122,7 @@ export default function QuizAttemptDetailPage() {
       <div className="space-y-6">
         <SectionCard
           title={`Attempt #${data.user_attempt_number}`}
-          subtitle={`Scor: ${data.score} / ${data.total_questions}`}
+          subtitle={`Scor user: ${data.score} / ${data.total_questions}`}
           rightSlot={
             <div className="flex flex-wrap gap-3">
               <button onClick={handleReplaySameQuiz} className={secondaryButtonClass}>
@@ -121,7 +140,16 @@ export default function QuizAttemptDetailPage() {
             </div>
           }
         >
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <span className={modeBadgeClass(data.generation_mode)}>
+              {String(data.generation_mode).toUpperCase()}
+            </span>
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+              Set #{data.question_set_id}
+            </span>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
             <div className="rounded-2xl bg-slate-50 p-4">
               <p className="text-sm text-slate-500">Document</p>
               <p className="mt-2 text-lg font-semibold text-slate-950">
@@ -135,10 +163,17 @@ export default function QuizAttemptDetailPage() {
                 {new Date(data.completed_at).toLocaleString()}
               </p>
             </div>
+
+            <div className="rounded-2xl bg-slate-50 p-4">
+              <p className="text-sm text-slate-500">Scor AI</p>
+              <p className="mt-2 text-lg font-semibold text-slate-950">
+                {data.ai_attempt ? `${data.ai_attempt.score} / ${data.ai_attempt.total_questions}` : '-'}
+              </p>
+            </div>
           </div>
         </SectionCard>
 
-        <SectionCard title="Răspunsuri" subtitle="Revizuirea completă a încercării.">
+        <SectionCard title="Răspunsuri" subtitle="Revizuirea completă a încercării și comparația cu AI.">
           {data.answers.length === 0 ? (
             <EmptyState
               title="Nu există răspunsuri"
@@ -146,57 +181,82 @@ export default function QuizAttemptDetailPage() {
             />
           ) : (
             <div className="grid gap-4">
-              {data.answers.map((answer) => (
-                <div
-                  key={answer.id}
-                  className={`rounded-2xl border p-4 ${
-                    answer.is_correct
-                      ? 'border-emerald-200 bg-emerald-50/70'
-                      : 'border-rose-200 bg-rose-50/70'
-                  }`}
-                >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-                      {answer.question.question_type}
-                    </span>
-                    <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">
-                      {answer.question.language.toUpperCase()}
-                    </span>
-                  </div>
+              {data.answers.map((answer) => {
+                const aiAnswer = aiAnswerMap[answer.question.id]
 
-                  <p className="mt-3 text-sm font-medium text-slate-900">
-                    {answer.question.question_text}
-                  </p>
-
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-xl bg-white/80 p-3">
-                      <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                        Răspuns selectat
-                      </p>
-                      <p className="mt-2 text-sm text-slate-700">
-                        {String(answer.selected_answer)}
-                      </p>
-                    </div>
-
-                    <div className="rounded-xl bg-white/80 p-3">
-                      <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                        Răspuns corect
-                      </p>
-                      <p className="mt-2 text-sm text-slate-700">
-                        {String(answer.question.correct_answer)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <p
-                    className={`mt-4 text-sm font-semibold ${
-                      answer.is_correct ? 'text-emerald-700' : 'text-rose-700'
+                return (
+                  <div
+                    key={answer.id}
+                    className={`rounded-2xl border p-4 ${
+                      answer.is_correct
+                        ? 'border-emerald-200 bg-emerald-50/70'
+                        : 'border-rose-200 bg-rose-50/70'
                     }`}
                   >
-                    {answer.is_correct ? 'Corect' : 'Greșit'}
-                  </p>
-                </div>
-              ))}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                        {answer.question.question_type}
+                      </span>
+                      <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">
+                        {answer.question.language.toUpperCase()}
+                      </span>
+                    </div>
+
+                    <p className="mt-3 text-sm font-medium text-slate-900">
+                      {answer.question.question_text}
+                    </p>
+
+                    <div className="mt-4 grid gap-3 lg:grid-cols-3">
+                      <div className="rounded-xl bg-white/80 p-3">
+                        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                          Răspuns user
+                        </p>
+                        <p className="mt-2 text-sm text-slate-700">
+                          {String(answer.selected_answer)}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl bg-white/80 p-3">
+                        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                          Răspuns AI
+                        </p>
+                        <p className="mt-2 text-sm text-slate-700">
+                          {aiAnswer ? String(aiAnswer.selected_answer) : '-'}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl bg-white/80 p-3">
+                        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                          Răspuns corect
+                        </p>
+                        <p className="mt-2 text-sm text-slate-700">
+                          {String(answer.question.correct_answer)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-4">
+                      <p
+                        className={`text-sm font-semibold ${
+                          answer.is_correct ? 'text-emerald-700' : 'text-rose-700'
+                        }`}
+                      >
+                        User: {answer.is_correct ? 'Corect' : 'Greșit'}
+                      </p>
+
+                      {aiAnswer && (
+                        <p
+                          className={`text-sm font-semibold ${
+                            aiAnswer.is_correct ? 'text-emerald-700' : 'text-rose-700'
+                          }`}
+                        >
+                          AI: {aiAnswer.is_correct ? 'Corect' : 'Greșit'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           )}
         </SectionCard>

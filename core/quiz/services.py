@@ -1,12 +1,10 @@
 import random
 
 
-# normalizam conceptul inainte sa il folosim in intrebare
 def normalize_concept_for_question(concept):
     return concept.lower().strip()
 
 
-# filtram itemii slabi inainte sa generam intrebari din ei
 def is_good_quiz_item(item):
     concept = item.get("concept", "").strip().lower()
     definition = item.get("definition", "").strip()
@@ -32,13 +30,31 @@ def is_good_quiz_item(item):
     return True
 
 
-# incercam sa ghicim daca un concept romanesc cere forma feminina
 def is_probably_feminine_ro(concept):
     feminine_endings = (
-        "are", "ere", "ire", "ție", "tie", "ziune", "siune",
-        "are", "ime", "ate", "tate", "itate", "ență", "enta",
-        "structură", "climă", "încapsulare", "mostenire", "moștenire",
-        "latitudine", "longitudine", "temă", "tema", "densitate",
+        "are",
+        "ere",
+        "ire",
+        "ție",
+        "tie",
+        "ziune",
+        "siune",
+        "ime",
+        "ate",
+        "tate",
+        "itate",
+        "ență",
+        "enta",
+        "structură",
+        "climă",
+        "încapsulare",
+        "mostenire",
+        "moștenire",
+        "latitudine",
+        "longitudine",
+        "temă",
+        "tema",
+        "densitate",
     )
 
     concept = concept.strip().lower()
@@ -60,14 +76,12 @@ def is_probably_feminine_ro(concept):
     return concept.endswith(feminine_endings)
 
 
-# construim forma corecta a unei intrebari de definitie in romana
 def ro_defined_phrase(concept):
     if is_probably_feminine_ro(concept):
         return f"Cum poate fi definită {concept}?"
     return f"Cum poate fi definit {concept}?"
 
 
-# incercam sa identificam ce tip de intrebare se potriveste pentru un item
 def detect_intent(item):
     definition = item.get("definition", "").lower()
     pattern = item.get("pattern", "").lower()
@@ -107,31 +121,43 @@ def detect_intent(item):
             return "reference"
 
         if pattern in [
-            "reprezintă", "reprezinta",
-            "este", "este definit ca", "este definită ca", "este definita ca",
-            "înseamnă", "inseamna",
-            "poate fi definit ca", "poate fi definita ca", "poate fi definită ca",
+            "reprezintă",
+            "reprezinta",
+            "este",
+            "este definit ca",
+            "este definită ca",
+            "este definita ca",
+            "înseamnă",
+            "inseamna",
+            "poate fi definit ca",
+            "poate fi definita ca",
+            "poate fi definită ca",
         ]:
             if definition.startswith("folosit ") or definition.startswith("utilizat "):
                 return "usage"
+
             if definition.startswith("procesul "):
                 return "process"
+
             return "definition"
 
         if "rol" in definition:
             return "role"
+
         if "folosit" in definition or "utilizat" in definition:
             return "usage"
+
         if "format din" in definition or "alcătuit din" in definition or "alcatuit din" in definition:
             return "structure"
+
         if "se referă la" in definition or "se refera la" in definition:
             return "reference"
+
         if "constă în" in definition or "consta in" in definition:
             return "process"
 
         return "definition"
 
-    # pentru engleza folosim un set separat de reguli
     if pattern in ["serves as", "serves to"]:
         return "role"
 
@@ -190,19 +216,22 @@ def detect_intent(item):
 
     if "role" in definition:
         return "role"
+
     if "used" in definition or "utilized" in definition:
         return "usage"
+
     if "consists" in definition or "composed of" in definition:
         return "structure"
+
     if "refers to" in definition or "relates to" in definition:
         return "reference"
+
     if "based on" in definition or "involves" in definition:
         return "process"
 
     return "definition"
 
 
-# generam mai multe variante de intrebare pentru acelasi concept
 def generate_question_variants(concept, intent, lang, item=None):
     current_concept = concept
     pattern = ""
@@ -212,7 +241,6 @@ def generate_question_variants(concept, intent, lang, item=None):
 
     if lang == "ro":
         if intent == "definition":
-            # pentru unele pattern-uri prioritizam anumite formulări
             if pattern in ["reprezintă", "reprezinta"]:
                 return [
                     f"Ce reprezinta {current_concept}?",
@@ -263,7 +291,6 @@ def generate_question_variants(concept, intent, lang, item=None):
 
         return strategies.get(intent, [f"Ce este {current_concept}?"])
 
-    # pentru engleza folosim alte sabloane
     if intent == "definition":
         return [
             f"What is {current_concept}?",
@@ -295,7 +322,6 @@ def generate_question_variants(concept, intent, lang, item=None):
     return strategies.get(intent, [f"What is {current_concept}?"])
 
 
-# dam un scor simplu fiecarei intrebari candidate
 def score_question(question):
     score = 0
     question_lower = question.lower()
@@ -315,16 +341,13 @@ def score_question(question):
     return score
 
 
-# alegem o varianta care suna cat mai natural
 def select_human_like_question(variants):
     scored = [(question, score_question(question)) for question in variants]
     scored = sorted(scored, key=lambda item: item[1], reverse=True)
-
     top = [item[0] for item in scored[:2]] if len(scored) >= 2 else [scored[0][0]]
     return random.choice(top)
 
 
-# alegem distractori pentru intrebarile grila
 def choose_distractors(correct_def, items, max_count=3):
     candidates = []
 
@@ -345,7 +368,6 @@ def choose_distractors(correct_def, items, max_count=3):
     return random.sample(candidates, max_count)
 
 
-# generam intrebarile pentru o anumita limba
 def generate_questions_for_language(items, language, difficulty="medium", max_questions=10):
     questions = []
 
@@ -353,6 +375,8 @@ def generate_questions_for_language(items, language, difficulty="medium", max_qu
 
     if len(valid_items) < 2:
         return []
+
+    random.shuffle(valid_items)
 
     used_questions = set()
 
@@ -472,7 +496,6 @@ def generate_questions_for_language(items, language, difficulty="medium", max_qu
     return questions
 
 
-# impartim intrebarile pe romana si engleza si le combinam la final
 def generate_questions(definitions, difficulty="medium", max_questions=10):
     definitions_ro = [item for item in definitions if item.get("language") == "ro"]
     definitions_en = [item for item in definitions if item.get("language") == "en"]
@@ -494,4 +517,10 @@ def generate_questions(definitions, difficulty="medium", max_questions=10):
         max_questions=max_en,
     )
 
-    return questions_ro + questions_en
+    questions = questions_ro + questions_en
+    random.shuffle(questions)
+
+    if len(questions) > max_questions:
+        questions = questions[:max_questions]
+
+    return questions

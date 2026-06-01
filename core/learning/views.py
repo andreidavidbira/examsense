@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from documents.models import Document, GeneratedQuestion, QuizAnswer, QuizAttempt
+from documents.models import AIQuizAttempt, Document, GeneratedQuestion, QuizAnswer, QuizAttempt
 from .serializers import (
     LearningDashboardSerializer,
     RecommendationSerializer,
@@ -13,7 +13,6 @@ from .serializers import (
 )
 
 
-# calculam numarul documentului raportat doar la utilizatorul curent
 def get_user_document_number(user, document_id):
     try:
         document_obj = Document.objects.get(id=document_id, user=user)
@@ -27,7 +26,6 @@ def get_user_document_number(user, document_id):
     )
 
 
-# calculam numarul attemptului raportat doar la utilizatorul curent
 def get_user_attempt_number(user, attempt_id):
     return (
         QuizAttempt.objects
@@ -36,7 +34,55 @@ def get_user_attempt_number(user, attempt_id):
     )
 
 
-# construim lista conceptelor la care utilizatorul greseste cel mai des
+def build_mode_stats(attempts_queryset):
+    answers_queryset = QuizAnswer.objects.filter(attempt__in=attempts_queryset)
+    ai_attempts_queryset = AIQuizAttempt.objects.filter(quiz_attempt__in=attempts_queryset)
+
+    total_attempts = attempts_queryset.count()
+    correct_answers = answers_queryset.filter(is_correct=True).count()
+    wrong_answers = answers_queryset.filter(is_correct=False).count()
+
+    average_score = attempts_queryset.aggregate(avg=Avg("score"))["avg"] or 0
+    best_score = attempts_queryset.aggregate(best=Max("score"))["best"] or 0
+    worst_score = attempts_queryset.aggregate(worst=Min("score"))["worst"] or 0
+
+    ai_average_score = ai_attempts_queryset.aggregate(avg=Avg("score"))["avg"] or 0
+    ai_best_score = ai_attempts_queryset.aggregate(best=Max("score"))["best"] or 0
+
+    ai_wins = 0
+    user_wins = 0
+    ties = 0
+
+    attempts_with_ai = attempts_queryset.select_related("ai_attempt")
+
+    for attempt in attempts_with_ai:
+        ai_attempt = getattr(attempt, "ai_attempt", None)
+
+        if not ai_attempt:
+            continue
+
+        if attempt.score > ai_attempt.score:
+            user_wins += 1
+        elif attempt.score < ai_attempt.score:
+            ai_wins += 1
+        else:
+            ties += 1
+
+    return {
+        "total_attempts": total_attempts,
+        "average_score": round(average_score, 2) if average_score else 0,
+        "best_score": best_score or 0,
+        "worst_score": worst_score or 0,
+        "correct_answers": correct_answers,
+        "wrong_answers": wrong_answers,
+        "ai_average_score": round(ai_average_score, 2) if ai_average_score else 0,
+        "ai_best_score": ai_best_score or 0,
+        "ai_wins": ai_wins,
+        "user_wins": user_wins,
+        "ties": ties,
+    }
+
+
 def build_weak_concepts(user, limit=10):
     wrong_answers = (
         QuizAnswer.objects
@@ -83,18 +129,15 @@ def build_weak_concepts(user, limit=10):
 class LearningDashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
-    # returnam statisticile principale pentru dashboardul utilizatorului
     def get(self, request):
-        attempts = QuizAttempt.objects.filter(user=request.user).order_by("-completed_at")
-        answers = QuizAnswer.objects.filter(attempt__user=request.user)
-
-        total_attempts = attempts.count()
-        correct_answers = answers.filter(is_correct=True).count()
-        wrong_answers = answers.filter(is_correct=False).count()
-
-        average_score = attempts.aggregate(avg=Avg("score"))["avg"] or 0
-        best_score = attempts.aggregate(best=Max("score"))["best"] or 0
-        worst_score = attempts.aggregate(worst=Min("score"))["worst"] or 0
+        attempts = (
+            QuizAttempt.objects
+            .filter(user=request.user)
+            .select_related("document", "question_set", "ai_attempt")
+            .order_by("-completed_at")
+        )
+        nlp_attempts = attempts.filter(question_set__generation_mode="nlp")
+        ai_attempts = attempts.filter(question_set__generation_mode="ai")
 
         weak_concepts = build_weak_concepts(request.user, limit=5)
 
@@ -104,24 +147,29 @@ class LearningDashboardView(APIView):
             user_document_number = get_user_document_number(request.user, attempt.document.id)
             user_attempt_number = get_user_attempt_number(request.user, attempt.id)
 
+            current_ai_score = 0
+            ai_attempt = getattr(attempt, "ai_attempt", None)
+            if ai_attempt:
+                current_ai_score = ai_attempt.score
+
             recent_attempts.append({
                 "attempt_id": attempt.id,
+                "question_set_id": attempt.question_set.id,
+                "generation_mode": attempt.question_set.generation_mode,
                 "user_attempt_number": user_attempt_number,
                 "document_id": attempt.document.id,
                 "user_document_number": user_document_number,
                 "document_file": attempt.document.file.url if attempt.document.file else None,
                 "score": attempt.score,
+                "ai_score": current_ai_score,
                 "total_questions": attempt.total_questions,
                 "completed_at": attempt.completed_at,
             })
 
         response_data = {
-            "total_attempts": total_attempts,
-            "average_score": round(average_score, 2) if average_score else 0,
-            "best_score": best_score,
-            "worst_score": worst_score,
-            "correct_answers": correct_answers,
-            "wrong_answers": wrong_answers,
+            "overall": build_mode_stats(attempts),
+            "nlp": build_mode_stats(nlp_attempts),
+            "ai": build_mode_stats(ai_attempts),
             "weak_concepts": weak_concepts,
             "recent_attempts": recent_attempts,
         }
@@ -133,7 +181,6 @@ class LearningDashboardView(APIView):
 class WeakConceptsView(APIView):
     permission_classes = [IsAuthenticated]
 
-    # returnam lista extinsa cu conceptele slabe ale utilizatorului
     def get(self, request):
         weak_concepts = build_weak_concepts(request.user, limit=20)
         serializer = WeakConceptSerializer(weak_concepts, many=True)
@@ -147,7 +194,6 @@ class WeakConceptsView(APIView):
 class RecommendationsView(APIView):
     permission_classes = [IsAuthenticated]
 
-    # construim recomandari simple pe baza numarului de greseli
     def get(self, request):
         weak_concepts = build_weak_concepts(request.user, limit=10)
 
@@ -183,7 +229,6 @@ class RecommendationsView(APIView):
 class RetryQuizView(APIView):
     permission_classes = [IsAuthenticated]
 
-    # generam un quiz de recapitulare pe baza conceptelor la care utilizatorul greseste
     def post(self, request):
         weak_concepts = build_weak_concepts(request.user, limit=10)
         concept_names = [item["concept"] for item in weak_concepts]
@@ -201,31 +246,24 @@ class RetryQuizView(APIView):
                 document__user=request.user,
                 source_definition__concept__in=concept_names,
             )
-            .select_related("source_definition")
-            .order_by("id")
+            .select_related("source_definition", "question_set")
+            .order_by("?")
             .distinct()
         )
 
         question_list = []
-        seen_ids = set()
 
-        for question in questions:
-            if question.id in seen_ids:
-                continue
-
-            seen_ids.add(question.id)
-
+        for question in questions[:10]:
             question_list.append({
                 "id": question.id,
+                "question_set_id": question.question_set.id,
+                "generation_mode": question.generation_mode,
                 "question_type": question.question_type,
                 "language": question.language,
                 "question_text": question.question_text,
                 "options": question.options,
                 "correct_answer": question.correct_answer,
             })
-
-            if len(question_list) >= 10:
-                break
 
         response_data = {
             "count": len(question_list),

@@ -33,14 +33,12 @@ export default function AppRouter() {
   return (
     <AppShell>
       <Routes>
-        {/* rute publice */}
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-        {/* rute protejate pentru utilizatori autentificati */}
         <Route
           path="/profile"
           element={
@@ -82,8 +80,9 @@ export default function AppRouter() {
             </ProtectedRoute>
           }
         />
+
         <Route
-          path="/documents/:id/quiz"
+          path="/quiz/:questionSetId"
           element={
             <ProtectedRoute>
               <QuizPlayPage />
@@ -149,7 +148,6 @@ export default function AppRouter() {
           }
         />
 
-        {/* ruta speciala pentru admin */}
         <Route
           path="/admin-panel"
           element={
@@ -159,7 +157,6 @@ export default function AppRouter() {
           }
         />
 
-        {/* fallback pentru rute inexistente */}
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </AppShell>

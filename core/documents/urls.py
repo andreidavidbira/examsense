@@ -4,6 +4,7 @@ from .views import (
     DeleteDocumentView,
     DocumentDetailView,
     DocumentListView,
+    QuestionSetDetailView,
     QuizAttemptDetailView,
     QuizHistoryView,
     QuizStatsView,
@@ -12,8 +13,6 @@ from .views import (
     UploadDocumentView,
 )
 
-
-# aici definim toate rutele pentru documente, quiz-uri si istoric
 urlpatterns = [
     path("", DocumentListView.as_view()),
     path("upload/", UploadDocumentView.as_view()),
@@ -21,6 +20,7 @@ urlpatterns = [
     path("quiz-history/", QuizHistoryView.as_view()),
     path("quiz-history/<int:attempt_id>/", QuizAttemptDetailView.as_view()),
     path("quiz-stats/", QuizStatsView.as_view()),
+    path("question-sets/<int:question_set_id>/quiz/", QuestionSetDetailView.as_view()),
     path("<int:document_id>/", DocumentDetailView.as_view()),
     path("<int:document_id>/delete/", DeleteDocumentView.as_view()),
     path("<int:document_id>/regenerate-questions/", RegenerateQuestionsView.as_view()),

@@ -24,6 +24,28 @@ import usePageTitle from '../../hooks/usePageTitle'
 const SCORE_COLORS = ['#6366f1', '#8b5cf6', '#06b6d4']
 const ANSWER_COLORS = ['#10b981', '#f43f5e']
 
+function ModeSection({ title, stats }) {
+  return (
+    <SectionCard title={title}>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <StatCard label="Quiz-uri" value={stats.total_attempts} />
+        <StatCard label="Scor mediu user" value={stats.average_score} />
+        <StatCard label="Scor maxim user" value={stats.best_score} />
+        <StatCard label="Scor mediu AI" value={stats.ai_average_score} />
+        <StatCard label="Scor maxim AI" value={stats.ai_best_score} />
+      </div>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <StatCard label="Răspunsuri corecte" value={stats.correct_answers} />
+        <StatCard label="Răspunsuri greșite" value={stats.wrong_answers} />
+        <StatCard label="User wins" value={stats.user_wins} />
+        <StatCard label="AI wins" value={stats.ai_wins} />
+        <StatCard label="Ties" value={stats.ties} />
+      </div>
+    </SectionCard>
+  )
+}
+
 export default function DashboardPage() {
   usePageTitle('Dashboard')
 
@@ -31,7 +53,6 @@ export default function DashboardPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    // incarcam statisticile principale pentru dashboard
     async function fetchDashboard() {
       try {
         const response = await api.get('/learning/dashboard/')
@@ -44,24 +65,22 @@ export default function DashboardPage() {
     fetchDashboard()
   }, [])
 
-  // pregatim datele pentru graficul cu scoruri
   const scoreChartData = useMemo(() => {
     if (!data) return []
 
     return [
-      { name: 'Scor mediu', value: data.average_score },
-      { name: 'Scor maxim', value: data.best_score },
-      { name: 'Scor minim', value: data.worst_score },
+      { name: 'User overall', value: data.overall.average_score },
+      { name: 'AI overall', value: data.overall.ai_average_score },
+      { name: 'Best user', value: data.overall.best_score },
     ]
   }, [data])
 
-  // pregatim datele pentru graficul cu raspunsuri corecte si gresite
   const answersChartData = useMemo(() => {
     if (!data) return []
 
     return [
-      { name: 'Corecte', value: data.correct_answers },
-      { name: 'Greșite', value: data.wrong_answers },
+      { name: 'Corecte', value: data.overall.correct_answers },
+      { name: 'Greșite', value: data.overall.wrong_answers },
     ]
   }, [data])
 
@@ -84,27 +103,14 @@ export default function DashboardPage() {
   return (
     <PageContainer>
       <div className="space-y-6">
-        <SectionCard
-          title="Dashboard"
-          subtitle="Privire de ansamblu asupra progresului tău în ExamSense+."
-        >
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard label="Quiz-uri totale" value={data.total_attempts} />
-            <StatCard label="Scor mediu" value={data.average_score} />
-            <StatCard label="Scor maxim" value={data.best_score} />
-            <StatCard label="Scor minim" value={data.worst_score} />
-          </div>
-
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <StatCard label="Răspunsuri corecte" value={data.correct_answers} />
-            <StatCard label="Răspunsuri greșite" value={data.wrong_answers} />
-          </div>
-        </SectionCard>
+        <ModeSection title="Overall" stats={data.overall} />
+        <ModeSection title="Quiz-uri generate cu NLP" stats={data.nlp} />
+        <ModeSection title="Quiz-uri generate cu AI" stats={data.ai} />
 
         <div className="grid gap-6 xl:grid-cols-2">
           <SectionCard
-            title="Distribuția scorurilor"
-            subtitle="Comparație rapidă între scorul mediu, minim și maxim."
+            title="Comparatie scoruri"
+            subtitle="Scorul mediu user vs AI și performanța maximă."
           >
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
@@ -128,7 +134,7 @@ export default function DashboardPage() {
 
           <SectionCard
             title="Răspunsuri corecte vs greșite"
-            subtitle="Imagine rapidă asupra calității răspunsurilor tale."
+            subtitle="Imagine rapidă asupra performanței tale generale."
           >
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
@@ -181,7 +187,7 @@ export default function DashboardPage() {
 
         <SectionCard
           title="Ultimele încercări"
-          subtitle="Cele mai recente quiz-uri finalizate."
+          subtitle="Cele mai recente quiz-uri finalizate, cu comparație user vs AI."
         >
           {data.recent_attempts.length === 0 ? (
             <EmptyState
@@ -197,9 +203,21 @@ export default function DashboardPage() {
                 >
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <p className="text-sm text-slate-500">
-                        Attempt #{attempt.user_attempt_number}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm text-slate-500">
+                          Attempt #{attempt.user_attempt_number}
+                        </p>
+                        <span
+                          className={
+                            attempt.generation_mode === 'ai'
+                              ? 'rounded-full bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700'
+                              : 'rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700'
+                          }
+                        >
+                          {attempt.generation_mode.toUpperCase()}
+                        </span>
+                      </div>
+
                       <p className="mt-1 text-base font-semibold text-slate-950">
                         Document #{attempt.user_document_number}
                       </p>
@@ -207,7 +225,10 @@ export default function DashboardPage() {
 
                     <div className="text-left sm:text-right">
                       <p className="text-base font-semibold text-slate-950">
-                        {attempt.score} / {attempt.total_questions}
+                        User: {attempt.score} / {attempt.total_questions}
+                      </p>
+                      <p className="text-sm text-slate-500">
+                        AI: {attempt.ai_score} / {attempt.total_questions}
                       </p>
                       <p className="text-sm text-slate-500">
                         {new Date(attempt.completed_at).toLocaleString()}

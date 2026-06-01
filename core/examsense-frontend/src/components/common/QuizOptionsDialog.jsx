@@ -6,33 +6,33 @@ import {
   secondaryButtonClass,
 } from '../../utils/buttonClasses'
 
-// dialogul ne lasa sa alegem dificultatea si numarul de intrebari pentru un quiz nou
 export default function QuizOptionsDialog({
   open,
   title = 'Configurează quiz-ul',
-  description = 'Alege dificultatea și numărul de întrebări.',
+  description = 'Alege dificultatea, numărul de întrebări și metoda de generare.',
   confirmText = 'Generează quiz',
   cancelText = 'Anulează',
   initialDifficulty = 'medium',
   initialMaxQuestions = 10,
+  initialGenerationMode = 'nlp',
   isSubmitting = false,
   onConfirm,
   onCancel,
 }) {
   const [difficulty, setDifficulty] = useState(initialDifficulty)
   const [maxQuestions, setMaxQuestions] = useState(initialMaxQuestions)
+  const [generationMode, setGenerationMode] = useState(initialGenerationMode)
   const [errors, setErrors] = useState({})
 
-  // cand deschidem dialogul, resetam valorile si erorile
   useEffect(() => {
     if (open) {
       setDifficulty(initialDifficulty)
       setMaxQuestions(initialMaxQuestions)
+      setGenerationMode(initialGenerationMode)
       setErrors({})
     }
-  }, [open, initialDifficulty, initialMaxQuestions])
+  }, [open, initialDifficulty, initialMaxQuestions, initialGenerationMode])
 
-  // validam optiunile selectate inainte de confirmare
   function validate() {
     const newErrors = {}
 
@@ -40,6 +40,10 @@ export default function QuizOptionsDialog({
 
     if (!difficulty) {
       newErrors.difficulty = 'Selectează dificultatea.'
+    }
+
+    if (!generationMode) {
+      newErrors.generationMode = 'Selectează metoda de generare.'
     }
 
     if (!numericValue) {
@@ -54,7 +58,6 @@ export default function QuizOptionsDialog({
     return Object.keys(newErrors).length === 0
   }
 
-  // trimitem mai departe optiunile doar daca validarea a trecut
   function handleConfirm() {
     if (!validate()) {
       return
@@ -63,6 +66,7 @@ export default function QuizOptionsDialog({
     onConfirm({
       difficulty,
       max_questions: Number(maxQuestions),
+      generation_mode: generationMode,
     })
   }
 
@@ -89,6 +93,23 @@ export default function QuizOptionsDialog({
               <p className="mt-3 text-sm leading-6 text-slate-600">{description}</p>
 
               <div className="mt-6 space-y-4">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
+                    Metodă generare
+                  </label>
+                  <select
+                    value={generationMode}
+                    onChange={(e) => setGenerationMode(e.target.value)}
+                    className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
+                  >
+                    <option value="nlp">NLP</option>
+                    <option value="ai">AI</option>
+                  </select>
+                  {errors.generationMode && (
+                    <p className="mt-2 text-xs text-rose-600">{errors.generationMode}</p>
+                  )}
+                </div>
+
                 <div>
                   <label className="mb-2 block text-sm font-medium text-slate-700">
                     Dificultate

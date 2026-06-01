@@ -15,7 +15,7 @@ function getCookie(name) {
 // aici configuram instanta axios folosita in tot frontendul
 const api = axios.create({
   baseURL: 'http://localhost:8000/api',
-  timeout: 15000,
+  timeout: 60000,
   withCredentials: true,
 })
 

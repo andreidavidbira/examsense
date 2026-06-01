@@ -1,18 +1,23 @@
 from django.conf import settings
 from django.db.models import Avg, Count, Max, Min
+from django.shortcuts import get_object_or_404
 
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from ai.services import generate_quiz_bundle_with_ai, solve_quiz_with_ai
 from nlp.services import process_text
 from quiz.services import generate_questions
 from users.throttles import QuizSubmitRateThrottle, UploadRateThrottle
 
 from .models import (
+    AIQuizAnswer,
+    AIQuizAttempt,
     Document,
     ExtractedDefinition,
     GeneratedQuestion,
+    QuestionSet,
     QuizAnswer,
     QuizAttempt,
 )
@@ -21,6 +26,7 @@ from .serializers import (
     DocumentListSerializer,
     ExtractedDefinitionSerializer,
     GeneratedQuestionSerializer,
+    QuestionSetSerializer,
     QuizAttemptSerializer,
     QuizStatsResponseSerializer,
     SubmitQuizInputSerializer,
@@ -29,7 +35,6 @@ from .serializers import (
 from .utils import extract_text_from_docx, extract_text_from_pdf
 
 
-# verificam daca fisierul incarcat are un tip si o dimensiune acceptata
 def validate_uploaded_file(file):
     allowed_extensions = [".pdf", ".docx"]
     allowed_content_types = [
@@ -51,7 +56,6 @@ def validate_uploaded_file(file):
         raise ValueError("File is too large.")
 
 
-# calculam numarul documentului raportat doar la utilizatorul curent
 def get_user_document_number(user, document_id):
     return (
         Document.objects
@@ -60,7 +64,6 @@ def get_user_document_number(user, document_id):
     )
 
 
-# calculam numarul attemptului raportat doar la utilizatorul curent
 def get_user_attempt_number(user, attempt_id):
     return (
         QuizAttempt.objects
@@ -69,9 +72,58 @@ def get_user_attempt_number(user, attempt_id):
     )
 
 
-# generam si salvam intrebarile pentru un document pe baza definitiilor extrase
-def build_questions_for_document(document, difficulty="medium", max_q=10):
-    db_definitions = list(document.definitions.all().order_by("id"))
+def ensure_nlp_definitions(document):
+    existing = document.definitions.filter(generation_mode="nlp").exists()
+
+    if existing:
+        return list(document.definitions.filter(generation_mode="nlp").order_by("id"))
+
+    text = document.extracted_text or ""
+
+    result = process_text(text)
+    definitions = result.get("definitions", [])
+
+    created = []
+
+    for definition in definitions:
+        obj = ExtractedDefinition.objects.create(
+            document=document,
+            concept=definition.get("concept", ""),
+            definition=definition.get("definition", ""),
+            pattern=definition.get("pattern", ""),
+            language=definition.get("language", ""),
+            sentence=definition.get("sentence", ""),
+            generation_mode="nlp",
+        )
+        created.append(obj)
+
+    return created
+
+
+def save_ai_definitions(document, definitions):
+    saved = []
+
+    for definition in definitions:
+        obj = ExtractedDefinition.objects.create(
+            document=document,
+            concept=definition.get("concept", ""),
+            definition=definition.get("definition", ""),
+            pattern=definition.get("pattern", "ai_generated"),
+            language=definition.get("language", ""),
+            sentence=definition.get("sentence", ""),
+            generation_mode="ai",
+        )
+        saved.append(obj)
+
+    return saved
+
+
+def build_questions_for_document_nlp(document, question_set, difficulty="medium", max_q=10):
+    db_definitions = list(
+        document.definitions
+        .filter(generation_mode="nlp")
+        .order_by("id")
+    )
 
     definitions = []
 
@@ -89,9 +141,6 @@ def build_questions_for_document(document, difficulty="medium", max_q=10):
         difficulty=difficulty,
         max_questions=max_q,
     )
-
-    # stergem intrebarile vechi si pastram doar noul set generat
-    GeneratedQuestion.objects.filter(document=document).delete()
 
     definition_map = {}
 
@@ -139,8 +188,10 @@ def build_questions_for_document(document, difficulty="medium", max_q=10):
 
         saved_question = GeneratedQuestion.objects.create(
             document=document,
+            question_set=question_set,
             source_definition=source_definition_obj,
             question_type=question_data.get("type"),
+            generation_mode="nlp",
             language=question_data.get("language"),
             question_text=question_data.get("question"),
             options=question_data.get("options", None),
@@ -151,11 +202,85 @@ def build_questions_for_document(document, difficulty="medium", max_q=10):
     return saved_questions
 
 
+def build_questions_for_document_ai(document, question_set, difficulty="medium", max_q=10):
+    text = document.extracted_text or ""
+
+    payload = generate_quiz_bundle_with_ai(
+        text=text,
+        difficulty=difficulty,
+        max_questions=max_q,
+    )
+
+    definitions = payload.get("definitions", [])
+    questions = payload.get("questions", [])
+
+    saved_definitions = save_ai_definitions(document, definitions)
+
+    definition_map = {}
+    for db_definition in saved_definitions:
+        key = (
+            db_definition.concept.strip().lower(),
+            db_definition.language,
+        )
+        definition_map[key] = db_definition
+
+    saved_questions = []
+
+    for question_data in questions:
+        source_definition_obj = None
+
+        if question_data.get("type") == "mcq_reverse":
+            concept_key = str(question_data.get("correct_answer", "")).strip().lower()
+            language_key = question_data.get("language")
+            source_definition_obj = definition_map.get((concept_key, language_key))
+
+        saved_question = GeneratedQuestion.objects.create(
+            document=document,
+            question_set=question_set,
+            source_definition=source_definition_obj,
+            question_type=question_data.get("type"),
+            generation_mode="ai",
+            language=question_data.get("language"),
+            question_text=question_data.get("question"),
+            options=question_data.get("options", None),
+            correct_answer=str(question_data.get("correct_answer")),
+        )
+        saved_questions.append(saved_question)
+
+    return saved_questions
+
+
+def create_question_set_for_document(document, generation_mode="nlp", difficulty="medium", max_q=10):
+    question_set = QuestionSet.objects.create(
+        document=document,
+        generation_mode=generation_mode,
+        difficulty=difficulty,
+        max_questions=max_q,
+    )
+
+    if generation_mode == "ai":
+        saved_questions = build_questions_for_document_ai(
+            document=document,
+            question_set=question_set,
+            difficulty=difficulty,
+            max_q=max_q,
+        )
+    else:
+        ensure_nlp_definitions(document)
+        saved_questions = build_questions_for_document_nlp(
+            document=document,
+            question_set=question_set,
+            difficulty=difficulty,
+            max_q=max_q,
+        )
+
+    return question_set, saved_questions
+
+
 class UploadDocumentView(APIView):
     permission_classes = [IsAuthenticated]
     throttle_classes = [UploadRateThrottle]
 
-    # incarcam documentul, extragem textul, procesam definitiile si generam intrebarile
     def post(self, request):
         file = request.FILES.get("file")
 
@@ -171,6 +296,10 @@ class UploadDocumentView(APIView):
 
         if not (filename.endswith(".pdf") or filename.endswith(".docx")):
             return Response({"error": "Unsupported file type"}, status=400)
+
+        generation_mode = request.data.get("generation_mode", "nlp")
+        difficulty = request.data.get("difficulty", "medium")
+        max_q = int(request.data.get("max_questions", 10))
 
         document = Document.objects.create(
             user=request.user,
@@ -188,7 +317,6 @@ class UploadDocumentView(APIView):
                 "details": str(e),
             }, status=500)
 
-        # limitam lungimea textului pentru a evita procesari prea mari
         max_length = 100000
         if len(text) > max_length:
             text = text[:max_length]
@@ -197,31 +325,17 @@ class UploadDocumentView(APIView):
         document.save()
 
         try:
-            result = process_text(text)
-            definitions = result.get("definitions", [])
+            ensure_nlp_definitions(document)
         except Exception as e:
             return Response({
-                "error": "Eroare la procesarea textului",
+                "error": "Eroare la procesarea NLP a textului",
                 "details": str(e),
             }, status=500)
 
-        ExtractedDefinition.objects.filter(document=document).delete()
-
-        for definition in definitions:
-            ExtractedDefinition.objects.create(
-                document=document,
-                concept=definition.get("concept", ""),
-                definition=definition.get("definition", ""),
-                pattern=definition.get("pattern", ""),
-                language=definition.get("language", ""),
-                sentence=definition.get("sentence", ""),
-            )
-
         try:
-            difficulty = request.data.get("difficulty", "medium")
-            max_q = int(request.data.get("max_questions", 10))
-            build_questions_for_document(
-                document,
+            question_set, saved_questions = create_question_set_for_document(
+                document=document,
+                generation_mode=generation_mode,
                 difficulty=difficulty,
                 max_q=max_q,
             )
@@ -231,25 +345,23 @@ class UploadDocumentView(APIView):
                 "details": str(e),
             }, status=500)
 
-        db_definitions = document.definitions.all().order_by("id")
-        db_definitions_ro = db_definitions.filter(language="ro")
-        db_definitions_en = db_definitions.filter(language="en")
+        document.refresh_from_db()
 
         response_data = {
             "id": document.id,
             "file": document.file.url,
             "uploaded_at": document.uploaded_at,
-            "definitions": ExtractedDefinitionSerializer(db_definitions, many=True).data,
-            "definitions_ro": ExtractedDefinitionSerializer(db_definitions_ro, many=True).data,
-            "definitions_en": ExtractedDefinitionSerializer(db_definitions_en, many=True).data,
-            "questions": GeneratedQuestionSerializer(
-                document.generated_questions.all().order_by("id"),
-                many=True,
+            "latest_question_set_id": question_set.id,
+            "definitions": ExtractedDefinitionSerializer(
+                document.definitions.all().order_by("id"),
+                many=True
+            ).data,
+            "questions": GeneratedQuestionSerializer(saved_questions, many=True).data,
+            "question_sets": QuestionSetSerializer(
+                document.question_sets.all().order_by("-created_at"),
+                many=True
             ).data,
         }
-
-        if not definitions:
-            response_data["warning"] = "Nu s-au putut extrage suficiente definitii relevante din document"
 
         return Response(response_data)
 
@@ -257,24 +369,21 @@ class UploadDocumentView(APIView):
 class RegenerateQuestionsView(APIView):
     permission_classes = [IsAuthenticated]
 
-    # generam un nou set de intrebari pentru un document existent
     def post(self, request, document_id):
-        try:
-            document = Document.objects.prefetch_related("definitions").get(
-                id=document_id,
-                user=request.user,
-            )
-        except Document.DoesNotExist:
-            return Response({"error": "Document not found"}, status=404)
+        document = get_object_or_404(
+            Document.objects.prefetch_related("definitions"),
+            id=document_id,
+            user=request.user,
+        )
 
-        if not document.definitions.exists():
-            return Response({"error": "Documentul nu are definiții extrase."}, status=400)
+        generation_mode = request.data.get("generation_mode", "nlp")
+        difficulty = request.data.get("difficulty", "medium")
+        max_q = int(request.data.get("max_questions", 10))
 
         try:
-            difficulty = request.data.get("difficulty", "medium")
-            max_q = int(request.data.get("max_questions", 10))
-            saved_questions = build_questions_for_document(
-                document,
+            question_set, saved_questions = create_question_set_for_document(
+                document=document,
+                generation_mode=generation_mode,
                 difficulty=difficulty,
                 max_q=max_q,
             )
@@ -287,6 +396,8 @@ class RegenerateQuestionsView(APIView):
         return Response({
             "message": "A fost generat un nou set de întrebări.",
             "document_id": document.id,
+            "question_set_id": question_set.id,
+            "generation_mode": question_set.generation_mode,
             "user_document_number": get_user_document_number(request.user, document.id),
             "questions": GeneratedQuestionSerializer(saved_questions, many=True).data,
         })
@@ -295,7 +406,6 @@ class RegenerateQuestionsView(APIView):
 class DocumentListView(APIView):
     permission_classes = [IsAuthenticated]
 
-    # returnam lista documentelor utilizatorului curent
     def get(self, request):
         documents = Document.objects.filter(user=request.user).order_by("-uploaded_at")
         serializer = DocumentListSerializer(documents, many=True)
@@ -305,30 +415,49 @@ class DocumentListView(APIView):
 class DocumentDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
-    # returnam toate detaliile unui document
     def get(self, request, document_id):
-        try:
-            document = Document.objects.prefetch_related(
+        document = get_object_or_404(
+            Document.objects.prefetch_related(
                 "definitions",
                 "generated_questions",
-            ).get(id=document_id, user=request.user)
-        except Document.DoesNotExist:
-            return Response({"error": "Document not found"}, status=404)
+                "question_sets",
+            ),
+            id=document_id,
+            user=request.user,
+        )
 
         serializer = DocumentDetailSerializer(document)
         return Response(serializer.data)
 
 
+class QuestionSetDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, question_set_id):
+        question_set = get_object_or_404(
+            QuestionSet.objects.select_related("document"),
+            id=question_set_id,
+            document__user=request.user,
+        )
+
+        questions = question_set.questions.all().order_by("id")
+
+        return Response({
+            "question_set_id": question_set.id,
+            "document_id": question_set.document.id,
+            "user_document_number": get_user_document_number(request.user, question_set.document.id),
+            "generation_mode": question_set.generation_mode,
+            "difficulty": question_set.difficulty,
+            "max_questions": question_set.max_questions,
+            "questions": GeneratedQuestionSerializer(questions, many=True).data,
+        })
+
+
 class DeleteDocumentView(APIView):
     permission_classes = [IsAuthenticated]
 
-    # permitem stergerea unui document propriu
     def delete(self, request, document_id):
-        try:
-            document = Document.objects.get(id=document_id, user=request.user)
-        except Document.DoesNotExist:
-            return Response({"error": "Document not found"}, status=404)
-
+        document = get_object_or_404(Document, id=document_id, user=request.user)
         document.delete()
         return Response({"message": "Document deleted successfully"})
 
@@ -337,29 +466,31 @@ class SubmitQuizView(APIView):
     permission_classes = [IsAuthenticated]
     throttle_classes = [QuizSubmitRateThrottle]
 
-    # validam raspunsurile, calculam scorul si salvam attemptul
     def post(self, request):
         input_serializer = SubmitQuizInputSerializer(data=request.data)
 
         if not input_serializer.is_valid():
             return Response(input_serializer.errors, status=400)
 
-        document_id = input_serializer.validated_data["document_id"]
+        question_set_id = input_serializer.validated_data["question_set_id"]
         answers = input_serializer.validated_data["answers"]
 
-        try:
-            document = Document.objects.get(id=document_id, user=request.user)
-        except Document.DoesNotExist:
-            return Response({"error": "Document not found"}, status=404)
+        question_set = get_object_or_404(
+            QuestionSet.objects.select_related("document"),
+            id=question_set_id,
+            document__user=request.user,
+        )
 
-        questions = GeneratedQuestion.objects.filter(document=document)
+        document = question_set.document
+        questions = question_set.questions.all()
 
         if not questions.exists():
-            return Response({"error": "No questions found for this document"}, status=404)
+            return Response({"error": "No questions found for this question set"}, status=404)
 
         attempt = QuizAttempt.objects.create(
             user=request.user,
             document=document,
+            question_set=question_set,
             score=0,
             total_questions=questions.count(),
         )
@@ -409,17 +540,75 @@ class SubmitQuizView(APIView):
         attempt.total_questions = questions.count()
         attempt.save()
 
+        ai_answers_payload = solve_quiz_with_ai(list(questions))
+
+        ai_attempt = AIQuizAttempt.objects.create(
+            quiz_attempt=attempt,
+            model_name=settings.OPENAI_SOLVER_MODEL,
+            score=0,
+            total_questions=questions.count(),
+        )
+
+        ai_score = 0
+        ai_results = []
+
+        for ai_answer_data in ai_answers_payload:
+            question_id = ai_answer_data.get("question_id")
+            selected_answer = ai_answer_data.get("selected_answer")
+
+            if question_id not in question_map:
+                continue
+
+            question = question_map[question_id]
+            correct_answer = question.correct_answer
+            is_correct = False
+
+            if question.question_type == "true_false":
+                selected_str = str(selected_answer).strip().lower()
+                correct_str = str(correct_answer).strip().lower()
+                is_correct = selected_str == correct_str
+            else:
+                is_correct = str(selected_answer).strip() == str(correct_answer).strip()
+
+            if is_correct:
+                ai_score += 1
+
+            AIQuizAnswer.objects.create(
+                ai_attempt=ai_attempt,
+                question=question,
+                selected_answer=str(selected_answer),
+                is_correct=is_correct,
+            )
+
+            ai_results.append({
+                "question_id": question.id,
+                "question": question.question_text,
+                "ai_selected_answer": selected_answer,
+                "correct_answer": correct_answer,
+                "is_correct": is_correct,
+            })
+
+        ai_attempt.score = ai_score
+        ai_attempt.total_questions = questions.count()
+        ai_attempt.save()
+
         user_document_number = get_user_document_number(request.user, document.id)
         user_attempt_number = get_user_attempt_number(request.user, attempt.id)
 
         response_data = {
             "attempt_id": attempt.id,
+            "question_set_id": question_set.id,
+            "generation_mode": question_set.generation_mode,
             "user_attempt_number": user_attempt_number,
             "document_id": document.id,
             "user_document_number": user_document_number,
             "score": score,
             "total_questions": attempt.total_questions,
             "results": results,
+            "ai_score": ai_score,
+            "ai_total_questions": questions.count(),
+            "ai_model_name": settings.OPENAI_SOLVER_MODEL,
+            "ai_results": ai_results,
         }
 
         output_serializer = SubmitQuizResponseSerializer(response_data)
@@ -429,7 +618,6 @@ class SubmitQuizView(APIView):
 class QuizHistoryView(APIView):
     permission_classes = [IsAuthenticated]
 
-    # returnam istoricul complet al attempturilor utilizatorului
     def get(self, request):
         attempts = QuizAttempt.objects.filter(user=request.user).order_by("-completed_at")
         serializer = QuizAttemptSerializer(attempts, many=True)
@@ -443,38 +631,74 @@ class QuizHistoryView(APIView):
 class QuizAttemptDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
-    # returnam detaliile unui attempt anume
     def get(self, request, attempt_id):
-        try:
-            attempt = QuizAttempt.objects.prefetch_related("answers__question").get(
-                id=attempt_id,
-                user=request.user,
-            )
-        except QuizAttempt.DoesNotExist:
-            return Response({"error": "Quiz attempt not found"}, status=404)
+        attempt = get_object_or_404(
+            QuizAttempt.objects.prefetch_related(
+                "answers__question",
+                "ai_attempt__answers__question",
+            ),
+            id=attempt_id,
+            user=request.user,
+        )
 
         serializer = QuizAttemptSerializer(attempt)
         return Response(serializer.data)
 
 
+def build_mode_stats(attempts_queryset):
+    answers_queryset = QuizAnswer.objects.filter(attempt__in=attempts_queryset)
+    ai_attempts_queryset = AIQuizAttempt.objects.filter(quiz_attempt__in=attempts_queryset)
+
+    total_attempts = attempts_queryset.count()
+    correct_answers = answers_queryset.filter(is_correct=True).count()
+    wrong_answers = answers_queryset.filter(is_correct=False).count()
+
+    average_score = attempts_queryset.aggregate(avg=Avg("score"))["avg"] or 0
+    best_score = attempts_queryset.aggregate(best=Max("score"))["best"] or 0
+    worst_score = attempts_queryset.aggregate(worst=Min("score"))["worst"] or 0
+
+    ai_average_score = ai_attempts_queryset.aggregate(avg=Avg("score"))["avg"] or 0
+    ai_best_score = ai_attempts_queryset.aggregate(best=Max("score"))["best"] or 0
+
+    ai_wins = 0
+    user_wins = 0
+    ties = 0
+
+    for attempt in attempts_queryset.select_related("ai_attempt"):
+        if not hasattr(attempt, "ai_attempt"):
+            continue
+
+        if attempt.score > attempt.ai_attempt.score:
+            user_wins += 1
+        elif attempt.score < attempt.ai_attempt.score:
+            ai_wins += 1
+        else:
+            ties += 1
+
+    return {
+        "total_attempts": total_attempts,
+        "correct_answers": correct_answers,
+        "wrong_answers": wrong_answers,
+        "average_score": round(average_score, 2) if average_score else 0,
+        "best_score": best_score,
+        "worst_score": worst_score,
+        "ai_average_score": round(ai_average_score, 2) if ai_average_score else 0,
+        "ai_best_score": ai_best_score,
+        "ai_wins": ai_wins,
+        "user_wins": user_wins,
+        "ties": ties,
+    }
+
+
 class QuizStatsView(APIView):
     permission_classes = [IsAuthenticated]
 
-    # calculam statisticile generale ale utilizatorului pentru quiz-uri
     def get(self, request):
-        attempts = QuizAttempt.objects.filter(user=request.user)
-        answers = QuizAnswer.objects.filter(attempt__user=request.user)
+        overall_attempts = QuizAttempt.objects.filter(user=request.user)
+        nlp_attempts = overall_attempts.filter(question_set__generation_mode="nlp")
+        ai_attempts = overall_attempts.filter(question_set__generation_mode="ai")
 
-        total_attempts = attempts.count()
-        total_answers = answers.count()
-        correct_answers = answers.filter(is_correct=True).count()
-        wrong_answers = answers.filter(is_correct=False).count()
-
-        avg_score = attempts.aggregate(avg=Avg("score"))["avg"] or 0
-        best_score = attempts.aggregate(best=Max("score"))["best"] or 0
-        worst_score = attempts.aggregate(worst=Min("score"))["worst"] or 0
-
-        most_wrong_concepts_qs = (
+        wrong_concepts_qs = (
             QuizAnswer.objects
             .filter(attempt__user=request.user, is_correct=False)
             .values("question__source_definition__concept")
@@ -484,7 +708,7 @@ class QuizStatsView(APIView):
 
         most_wrong_concepts = []
 
-        for item in most_wrong_concepts_qs[:10]:
+        for item in wrong_concepts_qs[:10]:
             concept = item["question__source_definition__concept"]
 
             if concept:
@@ -494,13 +718,9 @@ class QuizStatsView(APIView):
                 })
 
         response_data = {
-            "total_attempts": total_attempts,
-            "total_answers": total_answers,
-            "correct_answers": correct_answers,
-            "wrong_answers": wrong_answers,
-            "average_score": round(avg_score, 2) if avg_score else 0,
-            "best_score": best_score,
-            "worst_score": worst_score,
+            "overall": build_mode_stats(overall_attempts),
+            "nlp": build_mode_stats(nlp_attempts),
+            "ai": build_mode_stats(ai_attempts),
             "most_wrong_concepts": most_wrong_concepts,
         }
 

@@ -1,0 +1,1 @@
+# modul utilitar pentru integrarea OpenAI

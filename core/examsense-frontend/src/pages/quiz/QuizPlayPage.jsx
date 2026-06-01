@@ -11,15 +11,20 @@ import {
   primaryButtonClass,
   secondaryButtonClass,
 } from '../../utils/buttonClasses'
-import { getDisplayFileName } from '../../utils/fileHelpers'
+
+function modeBadgeClass(mode) {
+  return mode === 'ai'
+    ? 'rounded-full bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700'
+    : 'rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700'
+}
 
 export default function QuizPlayPage() {
   usePageTitle('Quiz')
 
-  const { id } = useParams()
+  const { questionSetId } = useParams()
   const navigate = useNavigate()
 
-  const [documentData, setDocumentData] = useState(null)
+  const [quizData, setQuizData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -27,31 +32,28 @@ export default function QuizPlayPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
-    // luam documentul si intrebarile generate pentru quiz
-    async function fetchDocument() {
+    async function fetchQuestionSet() {
       try {
-        const response = await api.get(`/documents/${id}/`)
-        setDocumentData(response.data)
+        const response = await api.get(`/documents/question-sets/${questionSetId}/quiz/`)
+        setQuizData(response.data)
       } catch {
-        setError('Nu am putut încărca quiz-ul pentru acest document.')
+        setError('Nu am putut încărca quiz-ul pentru acest set de întrebări.')
       } finally {
         setLoading(false)
       }
     }
 
-    fetchDocument()
-  }, [id])
+    fetchQuestionSet()
+  }, [questionSetId])
 
-  // extragem lista de intrebari din documentul incarcat
   const questions = useMemo(() => {
-    return documentData?.generated_questions || []
-  }, [documentData])
+    return quizData?.questions || []
+  }, [quizData])
 
   const currentQuestion = questions[currentIndex]
   const answeredCount = questions.filter((question) => answers[question.id] !== undefined).length
   const allAnswered = questions.length > 0 && answeredCount === questions.length
 
-  // salvam raspunsul ales pentru o intrebare
   function setAnswer(questionId, value) {
     setAnswers((prev) => ({
       ...prev,
@@ -59,7 +61,6 @@ export default function QuizPlayPage() {
     }))
   }
 
-  // trecem la urmatoarea intrebare si revenim in partea de sus a paginii
   function goNext() {
     if (currentIndex < questions.length - 1) {
       setCurrentIndex((prev) => prev + 1)
@@ -67,7 +68,6 @@ export default function QuizPlayPage() {
     }
   }
 
-  // revenim la intrebarea anterioara
   function goPrev() {
     if (currentIndex > 0) {
       setCurrentIndex((prev) => prev - 1)
@@ -75,9 +75,8 @@ export default function QuizPlayPage() {
     }
   }
 
-  // trimitem toate raspunsurile si navigam catre pagina de rezultat
   async function handleSubmitQuiz() {
-    if (!documentData || !allAnswered) {
+    if (!quizData || !allAnswered) {
       return
     }
 
@@ -85,20 +84,22 @@ export default function QuizPlayPage() {
 
     try {
       const payload = {
-        document_id: Number(id),
+        question_set_id: Number(questionSetId),
         answers: questions.map((question) => ({
           question_id: question.id,
           selected_answer: answers[question.id],
         })),
       }
 
-      const response = await api.post('/documents/submit-quiz/', payload)
+      const response = await api.post('/documents/submit-quiz/', payload, {
+        timeout: 120000, // 2 minute timeout pentru generare AI
+      })
 
       navigate('/quiz-result', {
         state: response.data,
       })
     } catch {
-      alert('Trimiterea quiz-ului a eșuat.')
+      setError('Trimiterea quiz-ului a eșuat.')
     } finally {
       setIsSubmitting(false)
     }
@@ -125,7 +126,7 @@ export default function QuizPlayPage() {
       <PageContainer>
         <EmptyState
           title="Nu există întrebări"
-          description="Documentul nu conține încă întrebări generate."
+          description="Setul de quiz nu conține încă întrebări."
         />
       </PageContainer>
     )
@@ -135,15 +136,27 @@ export default function QuizPlayPage() {
     <PageContainer>
       <div className="space-y-5 pb-28 sm:space-y-6 sm:pb-0">
         <SectionCard
-          title={`Quiz document #${documentData.user_document_number}`}
-          subtitle={getDisplayFileName(documentData.file)}
+          title={`Quiz document #${quizData.user_document_number}`}
+          subtitle={`Set #${quizData.question_set_id}`}
         >
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-slate-500">
-              Întrebarea {currentIndex + 1} din {questions.length}
-            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={modeBadgeClass(quizData.generation_mode)}>
+                {quizData.generation_mode.toUpperCase()}
+              </span>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                {quizData.difficulty}
+              </span>
+            </div>
+
             <p className="text-sm font-medium text-slate-700">
               Răspunse: {answeredCount} / {questions.length}
+            </p>
+          </div>
+
+          <div className="mb-4">
+            <p className="text-sm text-slate-500">
+              Întrebarea {currentIndex + 1} din {questions.length}
             </p>
           </div>
 
@@ -154,7 +167,6 @@ export default function QuizPlayPage() {
             />
           </div>
 
-          {/* afisam navigatorul rapid intre intrebari */}
           <div className="mb-5 grid grid-cols-5 gap-2 sm:grid-cols-10">
             {questions.map((question, index) => {
               const isActive = index === currentIndex
@@ -183,6 +195,9 @@ export default function QuizPlayPage() {
 
           <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
             <div className="flex flex-wrap items-center gap-2">
+              <span className={modeBadgeClass(quizData.generation_mode)}>
+                {quizData.generation_mode.toUpperCase()}
+              </span>
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
                 {currentQuestion.question_type}
               </span>
@@ -246,7 +261,6 @@ export default function QuizPlayPage() {
             </div>
           )}
 
-          {/* pe desktop afisam butoanele de navigare sub continut */}
           <div className="mt-6 hidden flex-col gap-3 sm:flex sm:flex-row sm:justify-between">
             <button
               onClick={goPrev}
@@ -275,7 +289,6 @@ export default function QuizPlayPage() {
         </SectionCard>
       </div>
 
-      {/* pe mobil pastram butoanele fixate jos pentru acces rapid */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 p-3 backdrop-blur sm:hidden">
         <div className="mx-auto flex max-w-3xl gap-3">
           <button
