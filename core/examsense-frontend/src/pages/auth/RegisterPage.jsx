@@ -132,7 +132,7 @@ export default function RegisterPage() {
                 onBlur={handleBlur}
                 autoComplete="username"
                 className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
-                placeholder="Ex: rares01"
+                placeholder="Ex: david01"
               />
               {fieldError('username') ? (
                 <p className="mt-2 text-xs text-rose-600">{fieldError('username')}</p>
@@ -177,7 +177,7 @@ export default function RegisterPage() {
                 onBlur={handleBlur}
                 autoComplete="given-name"
                 className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
-                placeholder="Ex: Rareș"
+                placeholder="Ex: David"
               />
               {fieldError('first_name') && (
                 <p className="mt-2 text-xs text-rose-600">{fieldError('first_name')}</p>
