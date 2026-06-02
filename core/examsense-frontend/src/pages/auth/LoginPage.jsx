@@ -1,7 +1,5 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { Eye, EyeOff } from 'lucide-react'
 
 import ErrorAlert from '../../components/common/ErrorAlert'
 import PageContainer from '../../components/common/PageContainer'
@@ -9,61 +7,49 @@ import SectionCard from '../../components/common/SectionCard'
 import { useAuth } from '../../hooks/useAuth'
 import { useToast } from '../../hooks/useToast'
 import usePageTitle from '../../hooks/usePageTitle'
-import { primaryButtonClass } from '../../utils/buttonClasses'
 import { getApiErrorMessages } from '../../utils/errorMessages'
-import {
-  validateRequiredText,
-  validateUsername,
-} from '../../utils/validators'
 
-// afisam formularul de autentificare si validam datele introduse
+const leftHighlights = [
+  'Autentificare rapidă și sigură',
+  'Acces la quiz-uri generate automat',
+  'Comparație directă între User și AI',
+  'Istoric, scoruri și progres centralizat',
+]
+
 export default function LoginPage() {
-  usePageTitle('Login')
+  usePageTitle('Autentificare')
 
   const navigate = useNavigate()
   const { login } = useAuth()
   const { showToast } = useToast()
 
-  const [form, setForm] = useState({
-    username: '',
-    password: '',
-  })
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
   const [touched, setTouched] = useState({})
   const [errors, setErrors] = useState([])
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
 
-  // validam live campurile necesare pentru autentificare
-  const liveErrors = useMemo(() => {
-    return {
-      username: validateUsername(form.username),
-      password: validateRequiredText(form.password, 'Parola'),
+  const usernameError = useMemo(() => {
+    if (!username.trim()) {
+      return 'Username-ul este obligatoriu.'
     }
-  }, [form])
+    return ''
+  }, [username])
 
-  const hasLiveErrors = Object.values(liveErrors).some(Boolean)
+  const passwordError = useMemo(() => {
+    if (!password.trim()) {
+      return 'Parola este obligatorie.'
+    }
+    return ''
+  }, [password])
 
-  // actualizam campul modificat in formular
-  function handleChange(e) {
-    setForm((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }))
-  }
-
-  // marcam un camp ca fiind atins pentru afisarea erorilor
-  function handleBlur(e) {
+  function handleBlur(fieldName) {
     setTouched((prev) => ({
       ...prev,
-      [e.target.name]: true,
+      [fieldName]: true,
     }))
   }
 
-  function fieldError(name) {
-    return touched[name] ? liveErrors[name] : ''
-  }
-
-  // trimitem datele de login si redirectionam utilizatorul dupa autentificare
   async function handleSubmit(e) {
     e.preventDefault()
     setErrors([])
@@ -72,24 +58,21 @@ export default function LoginPage() {
       password: true,
     })
 
-    if (hasLiveErrors) {
-      showToast('Completeaza corect datele pentru autentificare.', 'error')
+    if (usernameError || passwordError) {
+      showToast('Verifică datele introduse.', 'error')
       return
     }
 
     setIsSubmitting(true)
 
     try {
-      await login(form.username, form.password)
-      showToast('Autentificare reusita.', 'success')
+      await login(username.trim(), password)
+      showToast('Autentificare reușită.', 'success')
       navigate('/documents')
     } catch (err) {
-      const parsedErrors = getApiErrorMessages(
-        err,
-        'Autentificare esuata. Verifica datele introduse.'
-      )
+      const parsedErrors = getApiErrorMessages(err, 'Autentificarea a eșuat.')
       setErrors(parsedErrors)
-      showToast('Autentificare esuata.', 'error')
+      showToast('Autentificarea a eșuat.', 'error')
     } finally {
       setIsSubmitting(false)
     }
@@ -97,83 +80,108 @@ export default function LoginPage() {
 
   return (
     <PageContainer>
-      <div className="mx-auto max-w-xl py-8 sm:py-12">
-        <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}>
-          <SectionCard
-            title="Autentificare"
-            subtitle="Intra in contul tau ExamSense+ pentru a continua."
-          >
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Username
-                </label>
-                <input
-                  name="username"
-                  value={form.username}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  autoComplete="username"
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
-                  placeholder="Introdu username-ul"
-                />
-                {fieldError('username') && (
-                  <p className="mt-2 text-xs text-rose-600">{fieldError('username')}</p>
-                )}
-              </div>
+      <div className="grid gap-8 py-8 lg:grid-cols-[0.95fr_1.05fr] lg:py-12">
+        <div className="min-w-0">
+          <div className="rounded-[30px] border border-brand-100 bg-linear-to-br from-brand-50 via-violet-50 to-white p-6 shadow-sm sm:p-8">
+            <span className="inline-flex rounded-full border border-brand-200 bg-white/80 px-4 py-1.5 text-sm font-medium text-brand-700">
+              Bine ai revenit
+            </span>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Parola
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    name="password"
-                    value={form.password}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    autoComplete="current-password"
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 pr-12 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
-                    placeholder="Introdu parola"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((prev) => !prev)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-800"
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
+            <h1 className="mt-5 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+              Intră în contul tău și continuă să înveți cu{' '}
+              <span className="bg-linear-to-r from-brand-600 via-violet-600 to-cyan-500 bg-clip-text text-transparent">
+                ExamSense+
+              </span>
+              .
+            </h1>
+
+            <p className="mt-4 max-w-xl text-sm leading-7 text-slate-600 sm:text-base">
+              Autentifică-te pentru a încărca documente, a genera quiz-uri și a vedea cum te compari
+              cu un solver AI pe aceleași întrebări.
+            </p>
+
+            <div className="mt-6 grid gap-3">
+              {leftHighlights.map((item) => (
+                <div
+                  key={item}
+                  className="rounded-2xl border border-white/70 bg-white/80 px-4 py-3 text-sm font-medium text-slate-700 shadow-xs"
+                >
+                  {item}
                 </div>
-                {fieldError('password') && (
-                  <p className="mt-2 text-xs text-rose-600">{fieldError('password')}</p>
-                )}
-              </div>
+              ))}
+            </div>
+          </div>
+        </div>
 
-              <div className="text-right">
+        <SectionCard
+          title="Autentificare"
+          subtitle="Introdu username-ul și parola pentru a accesa aplicația."
+          className="min-w-0"
+        >
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Username
+              </label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                onBlur={() => handleBlur('username')}
+                autoComplete="username"
+                className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
+                placeholder="Introdu username-ul"
+              />
+              {touched.username && usernameError && (
+                <p className="mt-2 text-xs text-rose-600">{usernameError}</p>
+              )}
+            </div>
+
+            <div>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <label className="block text-sm font-medium text-slate-700">
+                  Parolă
+                </label>
                 <Link
                   to="/forgot-password"
-                  className="text-sm font-medium text-brand-600 hover:text-brand-700"
+                  className="text-xs font-medium text-brand-600 hover:text-brand-700"
                 >
                   Ai uitat parola?
                 </Link>
               </div>
 
-              <ErrorAlert messages={errors} />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onBlur={() => handleBlur('password')}
+                autoComplete="current-password"
+                className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
+                placeholder="Introdu parola"
+              />
+              {touched.password && passwordError && (
+                <p className="mt-2 text-xs text-rose-600">{passwordError}</p>
+              )}
+            </div>
 
-              <button disabled={isSubmitting} className={`w-full ${primaryButtonClass}`}>
-                {isSubmitting ? 'Se autentifica...' : 'Login'}
-              </button>
+            <ErrorAlert messages={errors} />
 
-              <p className="text-center text-sm text-slate-500">
-                Nu ai cont?{' '}
-                <Link to="/register" className="font-medium text-brand-600 hover:text-brand-700">
-                  Creeaza unul
-                </Link>
-              </p>
-            </form>
-          </SectionCard>
-        </motion.div>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full rounded-2xl bg-slate-950 px-6 py-3.5 text-sm font-medium text-white transition hover:opacity-95 disabled:opacity-70"
+            >
+              {isSubmitting ? 'Se autentifică...' : 'Autentificare'}
+            </button>
+
+            <p className="text-center text-sm text-slate-500">
+              Nu ai cont?{' '}
+              <Link to="/register" className="font-medium text-brand-600 hover:text-brand-700">
+                Creează unul acum
+              </Link>
+            </p>
+          </form>
+        </SectionCard>
       </div>
     </PageContainer>
   )

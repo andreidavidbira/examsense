@@ -90,6 +90,7 @@ def build_weak_concepts(user, limit=10):
         .select_related("question__document", "question__source_definition")
         .values(
             "question__source_definition__concept",
+            "question__source_definition__definition",
             "question__document__id",
             "question__document__file",
         )
@@ -114,6 +115,7 @@ def build_weak_concepts(user, limit=10):
 
         results.append({
             "concept": concept,
+            "definition": item.get("question__source_definition__definition") or "",
             "wrong_count": item["wrong_count"],
             "document_id": document_id,
             "document_file": f"/media/{document_file}" if document_file else None,
@@ -203,14 +205,24 @@ class RecommendationsView(APIView):
             wrong_count = item["wrong_count"]
 
             if wrong_count >= 5:
-                recommendation_text = "Concept prioritar pentru recapitulare imediata."
+                recommendation_text = (
+                    "Concept prioritar pentru recapitulare imediata. Revino asupra definitiei, "
+                    "refa quiz-uri pe acest subiect si incearca sa il explici in cuvintele tale."
+                )
             elif wrong_count >= 3:
-                recommendation_text = "Concept recomandat pentru exersare suplimentara."
+                recommendation_text = (
+                    "Concept recomandat pentru exersare suplimentara. Reciteste definitia si "
+                    "rezolva inca un set de intrebari pentru consolidare."
+                )
             else:
-                recommendation_text = "Concept util pentru consolidare."
+                recommendation_text = (
+                    "Concept util pentru consolidare. O scurta recapitulare este suficienta "
+                    "pentru a-l fixa mai bine."
+                )
 
             recommendations.append({
                 "concept": item["concept"],
+                "definition": item.get("definition", ""),
                 "wrong_count": wrong_count,
                 "recommendation": recommendation_text,
                 "document_id": item.get("document_id"),

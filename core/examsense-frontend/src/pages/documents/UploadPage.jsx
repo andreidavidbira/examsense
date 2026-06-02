@@ -7,12 +7,19 @@ import PageContainer from '../../components/common/PageContainer'
 import SectionCard from '../../components/common/SectionCard'
 import { useToast } from '../../hooks/useToast'
 import usePageTitle from '../../hooks/usePageTitle'
-import { primaryButtonClass } from '../../utils/buttonClasses'
 import { getApiErrorMessages } from '../../utils/errorMessages'
 import {
   validateQuestionCount,
   validateUploadFile,
 } from '../../utils/validators'
+
+
+const uploadHighlights = [
+  'Încarci PDF sau DOCX',
+  'Alegi generare cu NLP sau AI',
+  'Primești definiții și întrebări automat',
+  'Poți compara performanța ta cu AI',
+]
 
 export default function UploadPage() {
   usePageTitle('Încarcă document')
@@ -71,7 +78,7 @@ export default function UploadPage() {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
-        timeout: 120000, // 2 minute timeout pentru upload AI
+        timeout: 120000,
       })
 
       showToast('Document încărcat și procesat cu succes.', 'success')
@@ -91,10 +98,61 @@ export default function UploadPage() {
 
   return (
     <PageContainer>
-      <div className="mx-auto max-w-3xl py-8">
+      <div className="grid gap-8 py-8 lg:grid-cols-[0.95fr_1.05fr] lg:py-12">
+        <div className="min-w-0">
+          <div className="rounded-[30px] border border-brand-100 bg-linear-to-br from-brand-50 via-violet-50 to-white p-6 shadow-sm sm:p-8">
+            <span className="inline-flex rounded-full border border-brand-200 bg-white/80 px-4 py-1.5 text-sm font-medium text-brand-700">
+              Încarcă un document
+            </span>
+
+            <h1 className="mt-5 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+              Transformă rapid materialele tale în definiții, quiz-uri și comparații{' '}
+              <span className="bg-linear-to-r from-brand-600 via-violet-600 to-cyan-500 bg-clip-text text-transparent">
+                User vs AI
+              </span>
+              .
+            </h1>
+
+            <p className="mt-4 max-w-xl text-sm leading-7 text-slate-600 sm:text-base">
+              Încarcă un fișier, alege metoda de generare și lasă aplicația să construiască un flow
+              complet de învățare și evaluare.
+            </p>
+
+            <div className="mt-6 grid gap-3">
+              {uploadHighlights.map((item) => (
+                <div
+                  key={item}
+                  className="rounded-2xl border border-white/70 bg-white/80 px-4 py-3 text-sm font-medium text-slate-700 shadow-xs"
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 rounded-[26px] border border-slate-200 bg-white p-4 shadow-xs">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-medium text-slate-500">Mod NLP</p>
+                  <p className="mt-2 text-sm leading-7 text-slate-600">
+                    Pipeline clasic pentru extragere și generare de întrebări.
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-medium text-slate-500">Mod AI</p>
+                  <p className="mt-2 text-sm leading-7 text-slate-600">
+                    Modelul citește documentul și generează direct definiții și quiz-uri.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <SectionCard
-          title="Încarcă document"
-          subtitle="Adaugă un fișier PDF sau DOCX și generează întrebări cu NLP sau AI."
+          title="Configurare upload"
+          subtitle="Alege fișierul și modul în care vrei să fie procesat."
+          className="min-w-0"
         >
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
@@ -164,15 +222,25 @@ export default function UploadPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
+            <div
+              className={`rounded-3xl border px-4 py-4 text-sm ${
+                generationMode === 'nlp'
+                  ? 'border-brand-200 bg-brand-50 text-brand-700'
+                  : 'border-violet-200 bg-violet-50 text-violet-700'
+              }`}
+            >
               {generationMode === 'nlp'
-                ? 'Mod NLP: documentul este procesat prin pipeline-ul clasic de extragere și generare.'
-                : 'Mod AI: modelul citește documentul și generează direct definiții și întrebări.'}
+                ? 'Ai ales modul NLP: documentul va fi procesat prin pipeline-ul clasic de extragere și generare.'
+                : 'Ai ales modul AI: modelul va analiza documentul și va genera direct definiții și întrebări.'}
             </div>
 
             <ErrorAlert messages={errors} />
 
-            <button disabled={isSubmitting} className={primaryButtonClass}>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full rounded-2xl bg-slate-950 px-6 py-3.5 text-sm font-medium text-white transition hover:opacity-95 disabled:opacity-70"
+            >
               {isSubmitting ? 'Se procesează...' : 'Încarcă și procesează'}
             </button>
           </form>

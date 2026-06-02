@@ -17,6 +17,7 @@ import {
   secondaryButtonClass,
 } from '../../utils/buttonClasses'
 import { getDisplayFileName } from '../../utils/fileHelpers'
+import { formatDateTime } from '../../utils/dateFormat'
 
 function modeBadgeClass(mode) {
   return mode === 'ai'
@@ -210,7 +211,7 @@ export default function DocumentDetailPage() {
             <div className="rounded-2xl bg-slate-50 p-4">
               <p className="text-sm text-slate-500">Upload</p>
               <p className="mt-2 text-sm font-medium text-slate-900">
-                {new Date(documentData.uploaded_at).toLocaleString()}
+                {formatDateTime(documentData.uploaded_at)}
               </p>
             </div>
           </div>
@@ -251,7 +252,7 @@ export default function DocumentDetailPage() {
                   </div>
 
                   <p className="mt-3 text-sm text-slate-500">
-                    Generat la {new Date(item.created_at).toLocaleString()}
+                    Generat la {formatDateTime(item.created_at)}
                   </p>
                 </div>
               ))}

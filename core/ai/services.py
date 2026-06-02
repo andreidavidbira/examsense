@@ -1,4 +1,5 @@
 import json
+import random
 import re
 
 from django.conf import settings
@@ -184,6 +185,8 @@ def _normalize_question_item(item):
         if option.lower() == correct_answer.lower():
             correct_answer = option
             break
+
+    random.shuffle(normalized_options)
 
     return {
         "type": question_type,

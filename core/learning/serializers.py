@@ -3,6 +3,7 @@ from rest_framework import serializers
 
 class WeakConceptSerializer(serializers.Serializer):
     concept = serializers.CharField()
+    definition = serializers.CharField(allow_blank=True, required=False)
     wrong_count = serializers.IntegerField()
     document_id = serializers.IntegerField(allow_null=True, required=False)
     document_file = serializers.CharField(allow_null=True, required=False)
@@ -11,6 +12,7 @@ class WeakConceptSerializer(serializers.Serializer):
 
 class RecommendationSerializer(serializers.Serializer):
     concept = serializers.CharField()
+    definition = serializers.CharField(allow_blank=True, required=False)
     wrong_count = serializers.IntegerField()
     recommendation = serializers.CharField()
     document_id = serializers.IntegerField(allow_null=True, required=False)

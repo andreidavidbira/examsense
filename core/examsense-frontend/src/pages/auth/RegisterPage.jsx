@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Eye, EyeOff } from 'lucide-react'
 
 import ErrorAlert from '../../components/common/ErrorAlert'
 import PageContainer from '../../components/common/PageContainer'
@@ -8,28 +7,28 @@ import SectionCard from '../../components/common/SectionCard'
 import { useAuth } from '../../hooks/useAuth'
 import { useToast } from '../../hooks/useToast'
 import usePageTitle from '../../hooks/usePageTitle'
-import { primaryButtonClass } from '../../utils/buttonClasses'
 import { getApiErrorMessages } from '../../utils/errorMessages'
-import {
-  validateEmail,
-  validatePasswordMatch,
-  validateRequiredText,
-  validateStrongPassword,
-  validateUsername,
-} from '../../utils/validators'
+import { validateEmail } from '../../utils/validators'
+
+const benefits = [
+  'Îți creezi rapid cont și începi să încarci documente',
+  'Generezi quiz-uri cu NLP sau AI',
+  'Urmărești progresul și scorurile în dashboard',
+  'Compari performanța ta cu un solver AI',
+]
 
 export default function RegisterPage() {
-  usePageTitle('Register')
+  usePageTitle('Înregistrare')
 
   const navigate = useNavigate()
   const { register } = useAuth()
   const { showToast } = useToast()
 
-  const [form, setForm] = useState({
-    username: '',
-    email: '',
+  const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
+    username: '',
+    email: '',
     password: '',
     password_confirm: '',
   })
@@ -37,75 +36,91 @@ export default function RegisterPage() {
   const [touched, setTouched] = useState({})
   const [errors, setErrors] = useState([])
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
-  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false)
 
-  // validam live toate campurile importante din formular
   const liveErrors = useMemo(() => {
-    return {
-      username: validateUsername(form.username),
-      email: validateEmail(form.email),
-      first_name: validateRequiredText(form.first_name, 'Prenumele'),
-      last_name: validateRequiredText(form.last_name, 'Numele'),
-      password: validateStrongPassword(form.password),
-      password_confirm: validatePasswordMatch(
-        form.password,
-        form.password_confirm
-      ),
+    const nextErrors = {}
+
+    if (!formData.first_name.trim()) {
+      nextErrors.first_name = 'Prenumele este obligatoriu.'
     }
-  }, [form])
 
-  const hasLiveErrors = Object.values(liveErrors).some(Boolean)
+    if (!formData.last_name.trim()) {
+      nextErrors.last_name = 'Numele este obligatoriu.'
+    }
 
-  // actualizam campul modificat in formular
+    if (!formData.username.trim()) {
+      nextErrors.username = 'Username-ul este obligatoriu.'
+    }
+
+    const emailError = validateEmail(formData.email)
+    if (emailError) {
+      nextErrors.email = emailError
+    }
+
+    if (!formData.password.trim()) {
+      nextErrors.password = 'Parola este obligatorie.'
+    } else if (formData.password.length < 8) {
+      nextErrors.password = 'Parola trebuie să aibă minimum 8 caractere.'
+    }
+
+    if (!formData.password_confirm.trim()) {
+      nextErrors.password_confirm = 'Confirmarea parolei este obligatorie.'
+    } else if (formData.password_confirm !== formData.password) {
+      nextErrors.password_confirm = 'Parolele nu coincid.'
+    }
+
+    return nextErrors
+  }, [formData])
+
   function handleChange(e) {
-    setForm((prev) => ({
+    const { name, value } = e.target
+    setFormData((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [name]: value,
     }))
   }
 
-  // marcam un camp ca fiind atins pentru afisarea erorilor
-  function handleBlur(e) {
+  function handleBlur(fieldName) {
     setTouched((prev) => ({
       ...prev,
-      [e.target.name]: true,
+      [fieldName]: true,
     }))
   }
 
-  function fieldError(name) {
-    return touched[name] ? liveErrors[name] : ''
-  }
-
-  // trimitem formularul doar daca toate validarile au trecut
   async function handleSubmit(e) {
     e.preventDefault()
     setErrors([])
+
     setTouched({
-      username: true,
-      email: true,
       first_name: true,
       last_name: true,
+      username: true,
+      email: true,
       password: true,
       password_confirm: true,
     })
 
-    if (hasLiveErrors) {
-      showToast('Verifică datele introduse înainte de continuare.', 'error')
+    if (Object.keys(liveErrors).length > 0) {
+      showToast('Verifică datele introduse.', 'error')
       return
     }
 
     setIsSubmitting(true)
 
     try {
-      await register(form)
-      showToast('Cont creat cu succes. Te poți autentifica acum.', 'success')
+      await register({
+        first_name: formData.first_name.trim(),
+        last_name: formData.last_name.trim(),
+        username: formData.username.trim(),
+        email: formData.email.trim(),
+        password: formData.password,
+        password_confirm: formData.password_confirm,
+      })
+
+      showToast('Cont creat cu succes. Te poți autentifica.', 'success')
       navigate('/login')
     } catch (err) {
-      const parsedErrors = getApiErrorMessages(
-        err,
-        'Înregistrarea a eșuat. Verifică datele.'
-      )
+      const parsedErrors = getApiErrorMessages(err, 'Înregistrarea a eșuat.')
       setErrors(parsedErrors)
       showToast('Înregistrarea a eșuat.', 'error')
     } finally {
@@ -115,166 +130,175 @@ export default function RegisterPage() {
 
   return (
     <PageContainer>
-      <div className="mx-auto max-w-2xl py-8 sm:py-12">
+      <div className="grid gap-8 py-8 lg:grid-cols-[0.95fr_1.05fr] lg:py-12">
+        <div className="min-w-0">
+          <div className="rounded-[30px] border border-brand-100 bg-linear-to-br from-brand-50 via-violet-50 to-white p-6 shadow-sm sm:p-8">
+            <span className="inline-flex rounded-full border border-brand-200 bg-white/80 px-4 py-1.5 text-sm font-medium text-brand-700">
+              Creează-ți contul
+            </span>
+
+            <h1 className="mt-5 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+              Începe să folosești{' '}
+              <span className="bg-linear-to-r from-brand-600 via-violet-600 to-cyan-500 bg-clip-text text-transparent">
+                ExamSense+
+              </span>{' '}
+              pentru învățare, quiz-uri și comparație User vs AI.
+            </h1>
+
+            <p className="mt-4 max-w-xl text-sm leading-7 text-slate-600 sm:text-base">
+              Creează un cont și transformă rapid documentele tale în materiale interactive de studiu.
+            </p>
+
+            <div className="mt-6 grid gap-3">
+              {benefits.map((item) => (
+                <div
+                  key={item}
+                  className="rounded-2xl border border-white/70 bg-white/80 px-4 py-3 text-sm font-medium text-slate-700 shadow-xs"
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
         <SectionCard
-          title="Creează cont"
-          subtitle="Construiește-ți spațiul tău de învățare în ExamSense+."
+          title="Înregistrare"
+          subtitle="Completează formularul și creează-ți contul."
+          className="min-w-0"
         >
-          <form onSubmit={handleSubmit} className="grid gap-5 sm:grid-cols-2">
-            <div className="sm:col-span-2">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  Prenume
+                </label>
+                <input
+                  type="text"
+                  name="first_name"
+                  value={formData.first_name}
+                  onChange={handleChange}
+                  onBlur={() => handleBlur('first_name')}
+                  autoComplete="given-name"
+                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
+                  placeholder="Prenume"
+                />
+                {touched.first_name && liveErrors.first_name && (
+                  <p className="mt-2 text-xs text-rose-600">{liveErrors.first_name}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  Nume
+                </label>
+                <input
+                  type="text"
+                  name="last_name"
+                  value={formData.last_name}
+                  onChange={handleChange}
+                  onBlur={() => handleBlur('last_name')}
+                  autoComplete="family-name"
+                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
+                  placeholder="Nume"
+                />
+                {touched.last_name && liveErrors.last_name && (
+                  <p className="mt-2 text-xs text-rose-600">{liveErrors.last_name}</p>
+                )}
+              </div>
+            </div>
+
+            <div>
               <label className="mb-2 block text-sm font-medium text-slate-700">
                 Username
               </label>
               <input
+                type="text"
                 name="username"
-                value={form.username}
+                value={formData.username}
                 onChange={handleChange}
-                onBlur={handleBlur}
+                onBlur={() => handleBlur('username')}
                 autoComplete="username"
                 className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
-                placeholder="Ex: david01"
+                placeholder="Alege un username"
               />
-              {fieldError('username') ? (
-                <p className="mt-2 text-xs text-rose-600">{fieldError('username')}</p>
-              ) : (
-                <p className="mt-2 text-xs text-slate-500">
-                  Alege un username unic, ușor de recunoscut.
-                </p>
+              {touched.username && liveErrors.username && (
+                <p className="mt-2 text-xs text-rose-600">{liveErrors.username}</p>
               )}
             </div>
 
-            <div className="sm:col-span-2">
+            <div>
               <label className="mb-2 block text-sm font-medium text-slate-700">
                 Email
               </label>
               <input
                 type="email"
                 name="email"
-                value={form.email}
+                value={formData.email}
                 onChange={handleChange}
-                onBlur={handleBlur}
+                onBlur={() => handleBlur('email')}
                 autoComplete="email"
                 className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
-                placeholder="Ex: nume@email.com"
+                placeholder="nume@email.com"
               />
-              {fieldError('email') ? (
-                <p className="mt-2 text-xs text-rose-600">{fieldError('email')}</p>
-              ) : (
-                <p className="mt-2 text-xs text-slate-500">
-                  Folosește o adresă validă de email.
-                </p>
+              {touched.email && liveErrors.email && (
+                <p className="mt-2 text-xs text-rose-600">{liveErrors.email}</p>
               )}
             </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Prenume
-              </label>
-              <input
-                name="first_name"
-                value={form.first_name}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                autoComplete="given-name"
-                className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
-                placeholder="Ex: David"
-              />
-              {fieldError('first_name') && (
-                <p className="mt-2 text-xs text-rose-600">{fieldError('first_name')}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Nume
-              </label>
-              <input
-                name="last_name"
-                value={form.last_name}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                autoComplete="family-name"
-                className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
-                placeholder="Ex: Popescu"
-              />
-              {fieldError('last_name') && (
-                <p className="mt-2 text-xs text-rose-600">{fieldError('last_name')}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Parolă
-              </label>
-              <div className="relative">
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  Parolă
+                </label>
                 <input
-                  type={showPassword ? 'text' : 'password'}
+                  type="password"
                   name="password"
-                  value={form.password}
+                  value={formData.password}
                   onChange={handleChange}
-                  onBlur={handleBlur}
+                  onBlur={() => handleBlur('password')}
                   autoComplete="new-password"
-                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 pr-12 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
-                  placeholder="Introdu o parolă puternică"
+                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
+                  placeholder="Introdu parola"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-800"
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
+                {touched.password && liveErrors.password && (
+                  <p className="mt-2 text-xs text-rose-600">{liveErrors.password}</p>
+                )}
               </div>
-              {fieldError('password') ? (
-                <p className="mt-2 text-xs text-rose-600">{fieldError('password')}</p>
-              ) : (
-                <p className="mt-2 text-xs text-slate-500">
-                  Minim 8 caractere, cu literă mare, literă mică și cifră.
-                </p>
-              )}
-            </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Confirmă parola
-              </label>
-              <div className="relative">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  Confirmă parola
+                </label>
                 <input
-                  type={showPasswordConfirm ? 'text' : 'password'}
+                  type="password"
                   name="password_confirm"
-                  value={form.password_confirm}
+                  value={formData.password_confirm}
                   onChange={handleChange}
-                  onBlur={handleBlur}
+                  onBlur={() => handleBlur('password_confirm')}
                   autoComplete="new-password"
-                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 pr-12 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
-                  placeholder="Reintrodu parola"
+                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
+                  placeholder="Confirmă parola"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPasswordConfirm((prev) => !prev)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-800"
-                >
-                  {showPasswordConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
+                {touched.password_confirm && liveErrors.password_confirm && (
+                  <p className="mt-2 text-xs text-rose-600">
+                    {liveErrors.password_confirm}
+                  </p>
+                )}
               </div>
-              {fieldError('password_confirm') && (
-                <p className="mt-2 text-xs text-rose-600">
-                  {fieldError('password_confirm')}
-                </p>
-              )}
             </div>
 
-            <div className="sm:col-span-2">
-              <ErrorAlert messages={errors} />
-            </div>
+            <ErrorAlert messages={errors} />
 
-            <div className="sm:col-span-2">
-              <button disabled={isSubmitting} className={`w-full ${primaryButtonClass}`}>
-                {isSubmitting ? 'Se creează contul...' : 'Register'}
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full rounded-2xl bg-slate-950 px-6 py-3.5 text-sm font-medium text-white transition hover:opacity-95 disabled:opacity-70"
+            >
+              {isSubmitting ? 'Se creează contul...' : 'Creează cont'}
+            </button>
 
-            <p className="sm:col-span-2 text-center text-sm text-slate-500">
+            <p className="text-center text-sm text-slate-500">
               Ai deja cont?{' '}
               <Link to="/login" className="font-medium text-brand-600 hover:text-brand-700">
                 Autentifică-te

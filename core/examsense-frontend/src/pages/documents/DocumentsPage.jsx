@@ -10,6 +10,7 @@ import SkeletonCard from '../../components/common/SkeletonCard'
 import usePageTitle from '../../hooks/usePageTitle'
 import { primaryButtonClass } from '../../utils/buttonClasses'
 import { getDisplayFileName } from '../../utils/fileHelpers'
+import { formatDateTime } from '../../utils/dateFormat'
 
 export default function DocumentsPage() {
   usePageTitle('Documentele mele')
@@ -79,7 +80,7 @@ export default function DocumentsPage() {
                 </p>
 
                 <p className="mt-3 text-sm text-slate-500">
-                  {new Date(doc.uploaded_at).toLocaleString()}
+                  {formatDateTime(doc.uploaded_at)}
                 </p>
               </Link>
             ))}

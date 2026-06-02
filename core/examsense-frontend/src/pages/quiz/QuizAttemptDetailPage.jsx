@@ -13,6 +13,7 @@ import {
   secondaryButtonClass,
 } from '../../utils/buttonClasses'
 import { formatDuration } from '../../utils/timeFormat'
+import { formatDateTime } from '../../utils/dateFormat'
 
 function modeBadgeClass(mode) {
   return mode === 'ai'
@@ -171,7 +172,7 @@ export default function QuizAttemptDetailPage() {
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-sm text-slate-500">Finalizat la</p>
               <p className="mt-2 text-sm font-medium text-slate-900">
-                {new Date(data.completed_at).toLocaleString()}
+                {formatDateTime(data.completed_at)}
               </p>
             </div>
 
@@ -241,7 +242,7 @@ export default function QuizAttemptDetailPage() {
                         <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                           Răspuns user
                         </p>
-                        <p className="mt-2 break-words text-sm leading-6 text-slate-700">
+                        <p className="mt-2 wrap-break-word text-sm leading-6 text-slate-700">
                           {String(answer.selected_answer)}
                         </p>
                       </div>
@@ -250,7 +251,7 @@ export default function QuizAttemptDetailPage() {
                         <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                           Răspuns AI
                         </p>
-                        <p className="mt-2 break-words text-sm leading-6 text-slate-700">
+                        <p className="mt-2 wrap-break-word text-sm leading-6 text-slate-700">
                           {aiAnswer ? String(aiAnswer.selected_answer) : '-'}
                         </p>
                       </div>
@@ -259,7 +260,7 @@ export default function QuizAttemptDetailPage() {
                         <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                           Răspuns corect
                         </p>
-                        <p className="mt-2 break-words text-sm leading-6 text-slate-700">
+                        <p className="mt-2 wrap-break-word text-sm leading-6 text-slate-700">
                           {String(answer.question.correct_answer)}
                         </p>
                       </div>

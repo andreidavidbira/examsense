@@ -13,6 +13,7 @@ import {
   secondaryButtonClass,
 } from '../../utils/buttonClasses'
 import { formatDuration } from '../../utils/timeFormat'
+import { formatDateTime } from '../../utils/dateFormat'
 
 function modeBadgeClass(mode) {
   return mode === 'ai'
@@ -152,7 +153,7 @@ export default function QuizHistoryPage() {
 
                     <div className="mt-3 grid gap-2 sm:grid-cols-2">
                       <p className="text-sm text-slate-500">
-                        {new Date(attempt.completed_at).toLocaleString()}
+                        {formatDateTime(attempt.completed_at)}
                       </p>
                       <p className="text-sm text-slate-500">
                         Timp user: {formatDuration(attempt.time_spent_seconds)}

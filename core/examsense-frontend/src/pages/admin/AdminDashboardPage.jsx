@@ -1,4 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 
 import api from '../../api/axios'
 import ConfirmDialog from '../../components/common/ConfirmDialog'
@@ -16,8 +28,13 @@ import {
 } from '../../utils/buttonClasses'
 import { getDisplayFileName } from '../../utils/fileHelpers'
 import { formatDuration } from '../../utils/timeFormat'
+import { formatDateTime } from '../../utils/dateFormat'
 
 const PAGE_SIZE = 5
+const ANSWER_COLORS = ['#10b981', '#f43f5e']
+const COMPARE_COLORS = ['#0f172a', '#8b5cf6']
+const MODE_COLORS = ['#10b981', '#8b5cf6']
+const USER_DUEL_COLORS = ['#0f172a', '#8b5cf6', '#f59e0b']
 
 function compactButtonClass(baseClass) {
   return `${baseClass} min-h-0 px-3 py-2 text-xs sm:text-sm`
@@ -71,6 +88,18 @@ function ModeStatsGrid({ title, stats }) {
         <StatCard label="Scor mediu" value={stats.average_score} accent="brand" />
         <StatCard label="Scor maxim" value={stats.best_score} accent="violet" />
         <StatCard label="Scor minim" value={stats.worst_score} accent="amber" />
+      </div>
+    </SectionCard>
+  )
+}
+
+function ChartCard({ title, subtitle, children }) {
+  return (
+    <SectionCard title={title} subtitle={subtitle} className="min-w-0">
+      <div className="w-full min-w-0 overflow-hidden rounded-2xl">
+        <div className="h-72 w-full min-w-0 sm:h-80">
+          {children}
+        </div>
       </div>
     </SectionCard>
   )
@@ -202,6 +231,87 @@ export default function AdminDashboardPage() {
   const pagedQuestionSets = useMemo(() => paginate(questionSets, questionSetsPage), [questionSets, questionSetsPage])
   const pagedAttempts = useMemo(() => paginate(attempts, attemptsPage), [attempts, attemptsPage])
 
+  const globalAnswerDistributionData = useMemo(() => {
+    if (!overview) return []
+
+    return [
+      { name: 'Corecte', value: Number(overview.correct_answers || 0) },
+      { name: 'Greșite', value: Number(overview.wrong_answers || 0) },
+    ]
+  }, [overview])
+
+  const globalScoreCompareData = useMemo(() => {
+    if (!overview || !aiOverview) return []
+
+    return [
+      {
+        name: 'Overall',
+        user: Number(overview.average_score || 0),
+        ai: Number(aiOverview.overall?.average_score || 0),
+      },
+      {
+        name: 'NLP',
+        user: Number(overview.nlp_average_score || 0),
+        ai: Number(aiOverview.nlp?.average_score || 0),
+      },
+      {
+        name: 'AI',
+        user: Number(overview.ai_average_score || 0),
+        ai: Number(aiOverview.ai?.average_score || 0),
+      },
+    ]
+  }, [overview, aiOverview])
+
+  const globalModeVolumeData = useMemo(() => {
+    if (!overview) return []
+
+    return [
+      { name: 'NLP attempts', value: Number(overview.nlp_attempts || 0) },
+      { name: 'AI attempts', value: Number(overview.ai_attempts || 0) },
+    ]
+  }, [overview])
+
+  const selectedUserDuelData = useMemo(() => {
+    if (!selectedUserDetail?.user_vs_ai_overall) return []
+
+    return [
+      {
+        name: 'User wins',
+        value: Number(selectedUserDetail.user_vs_ai_overall.user_wins || 0),
+      },
+      {
+        name: 'AI wins',
+        value: Number(selectedUserDetail.user_vs_ai_overall.ai_wins || 0),
+      },
+      {
+        name: 'Ties',
+        value: Number(selectedUserDetail.user_vs_ai_overall.draws || 0),
+      },
+    ]
+  }, [selectedUserDetail])
+
+  const selectedUserModeCompareData = useMemo(() => {
+    if (!selectedUserDetail) return []
+
+    return [
+      {
+        name: 'Overall',
+        user: Number(selectedUserDetail.overall?.average_score || 0),
+        ai: Number(selectedUserDetail.ai_solver_overall?.average_score || 0),
+      },
+      {
+        name: 'NLP',
+        user: Number(selectedUserDetail.nlp?.average_score || 0),
+        ai: Number(selectedUserDetail.ai_solver_nlp?.average_score || 0),
+      },
+      {
+        name: 'AI',
+        user: Number(selectedUserDetail.ai?.average_score || 0),
+        ai: Number(selectedUserDetail.ai_solver_ai?.average_score || 0),
+      },
+    ]
+  }, [selectedUserDetail])
+
   if (loading) {
     return (
       <PageContainer>
@@ -254,7 +364,7 @@ export default function AdminDashboardPage() {
             Admin Control Panel
           </h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            Statistici globale, comparații NLP vs AI și management pentru utilizatori, documente și quiz-uri.
+            Statistici globale, comparații NLP vs AI și accent puternic pe duelul dintre utilizatori și solverul AI.
           </p>
         </div>
 
@@ -282,6 +392,77 @@ export default function AdminDashboardPage() {
             <StatCard label="AI avg score" value={overview?.ai_average_score || 0} accent="violet" />
           </div>
         </SectionCard>
+
+        <div className="grid min-w-0 gap-6 xl:grid-cols-3">
+          <ChartCard
+            title="Răspunsuri totale corecte vs greșite"
+            subtitle="Distribuția globală a răspunsurilor date de utilizatori în platformă."
+          >
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={globalAnswerDistributionData}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={60}
+                  outerRadius={100}
+                  paddingAngle={3}
+                >
+                  {globalAnswerDistributionData.map((entry, index) => (
+                    <Cell
+                      key={`global-answer-${index}`}
+                      fill={ANSWER_COLORS[index % ANSWER_COLORS.length]}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </ChartCard>
+
+          <ChartCard
+            title="User vs AI pe moduri"
+            subtitle="Comparația scorului mediu dintre utilizatori și AI pe Overall, NLP și AI."
+          >
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={globalScoreCompareData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="name" stroke="#64748b" />
+                <YAxis allowDecimals={true} stroke="#64748b" />
+                <Tooltip />
+                <Bar dataKey="user" radius={[8, 8, 0, 0]}>
+                  {globalScoreCompareData.map((_, index) => (
+                    <Cell key={`global-user-${index}`} fill={COMPARE_COLORS[0]} />
+                  ))}
+                </Bar>
+                <Bar dataKey="ai" radius={[8, 8, 0, 0]}>
+                  {globalScoreCompareData.map((_, index) => (
+                    <Cell key={`global-ai-${index}`} fill={COMPARE_COLORS[1]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+
+          <ChartCard
+            title="Volum NLP vs AI"
+            subtitle="Cum se distribuie încercările între quiz-urile generate cu NLP și AI."
+          >
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={globalModeVolumeData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="name" stroke="#64748b" />
+                <YAxis stroke="#64748b" />
+                <Tooltip />
+                <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                  {globalModeVolumeData.map((_, index) => (
+                    <Cell key={`mode-volume-${index}`} fill={MODE_COLORS[index % MODE_COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        </div>
 
         <ModeStatsGrid title="AI Solver - Overall" stats={aiOverview?.overall} />
         <ModeStatsGrid title="AI Solver - Quiz-uri NLP" stats={aiOverview?.nlp} />
@@ -377,7 +558,7 @@ export default function AdminDashboardPage() {
           <>
             <SectionCard
               title={`Dashboard utilizator: ${selectedUserDetail.user.username}`}
-              subtitle="Statistici complete pentru utilizatorul selectat."
+              subtitle="Statistici complete pentru utilizatorul selectat, cu accent pe comparația cu AI."
             >
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <StatCard label="Documente" value={selectedUserDetail.documents_count} accent="brand" />
@@ -386,6 +567,55 @@ export default function AdminDashboardPage() {
                 <StatCard label="Întrebări" value={selectedUserDetail.questions_count} accent="amber" />
               </div>
             </SectionCard>
+
+            <div className="grid min-w-0 gap-6 xl:grid-cols-2">
+              <ChartCard
+                title="Distribuție dueluri utilizator"
+                subtitle="Câte quiz-uri a câștigat utilizatorul, AI-ul sau au fost la egalitate."
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={selectedUserDuelData}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={3}
+                    >
+                      {selectedUserDuelData.map((entry, index) => (
+                        <Cell key={`selected-duel-${index}`} fill={USER_DUEL_COLORS[index % USER_DUEL_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </ChartCard>
+
+              <ChartCard
+                title="User vs AI pe moduri"
+                subtitle="Compară scorul mediu al utilizatorului cu scorul mediu al AI-ului pe Overall, NLP și AI."
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={selectedUserModeCompareData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="name" stroke="#64748b" />
+                    <YAxis allowDecimals={true} stroke="#64748b" />
+                    <Tooltip />
+                    <Bar dataKey="user" radius={[8, 8, 0, 0]}>
+                      {selectedUserModeCompareData.map((_, index) => (
+                        <Cell key={`selected-user-${index}`} fill={COMPARE_COLORS[0]} />
+                      ))}
+                    </Bar>
+                    <Bar dataKey="ai" radius={[8, 8, 0, 0]}>
+                      {selectedUserModeCompareData.map((_, index) => (
+                        <Cell key={`selected-ai-${index}`} fill={COMPARE_COLORS[1]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartCard>
+            </div>
 
             <ModeStatsGrid title="User Overall" stats={selectedUserDetail.overall} />
             <ModeStatsGrid title="User NLP" stats={selectedUserDetail.nlp} />
@@ -503,7 +733,7 @@ export default function AdminDashboardPage() {
 
                   <div>
                     <p className="text-xs uppercase tracking-wide text-slate-400">Data</p>
-                    <p className="mt-1 text-slate-700">{new Date(item.created_at).toLocaleString()}</p>
+                    <p className="mt-1 text-slate-700">{formatDateTime(item.created_at)}</p>
                   </div>
                 </div>
               </div>
@@ -561,7 +791,7 @@ export default function AdminDashboardPage() {
 
                   <div>
                     <p className="text-xs uppercase tracking-wide text-slate-400">Timp / data</p>
-                    <p className="mt-1 text-slate-700">{new Date(attempt.completed_at).toLocaleString()}</p>
+                    <p className="mt-1 text-slate-700">{formatDateTime(attempt.completed_at)}</p>
                     {attempt.time_spent_seconds !== undefined && (
                       <p className="mt-1 text-xs text-slate-500">
                         User: {formatDuration(attempt.time_spent_seconds)}
