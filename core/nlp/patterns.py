@@ -1,6 +1,18 @@
+"""
+ExamSense+ - NLP Patterns
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste pattern-urile lingvistice folosite pentru extragerea definitiilor
+- separa expresiile relevante pentru limba romana si limba engleza
+- grupeaza pattern-urile pe categorii semantice
+- construieste listele finale ordonate folosite de extractorul NLP
+"""
+
 # ================= ROMANA =================
 
-# DEFINITII
+# pattern-uri tipice pentru definitii
 ROMANIAN_PATTERN_DEFINITION = [
     "poate fi definit ca",
     "poate fi definita ca",
@@ -20,7 +32,7 @@ ROMANIAN_PATTERN_DEFINITION = [
     "semnifică",
 ]
 
-# REFERIRE
+# pattern-uri de tip referire sau asociere
 ROMANIAN_PATTERN_REFERENCE = [
     "se refera la",
     "se referă la",
@@ -30,7 +42,7 @@ ROMANIAN_PATTERN_REFERENCE = [
     "se referă asupra",
 ]
 
-# DESCRIERE
+# pattern-uri de tip descriere
 ROMANIAN_PATTERN_DESCRIPTION = [
     "descrie",
     "definește",
@@ -42,7 +54,7 @@ ROMANIAN_PATTERN_DESCRIPTION = [
     "poate fi descrisă ca",
 ]
 
-# STRUCTURA
+# pattern-uri care sugereaza structura unui concept
 ROMANIAN_PATTERN_STRUCTURE = [
     "este format din",
     "este formata din",
@@ -53,13 +65,13 @@ ROMANIAN_PATTERN_STRUCTURE = [
     "este alcătuită din",
 ]
 
-# PROCES
+# pattern-uri care descriu un proces
 ROMANIAN_PATTERN_PROCESS = [
     "consta in",
     "constă în",
 ]
 
-# UTILIZARE
+# pattern-uri care indica rolul sau utilizarea unui concept
 ROMANIAN_PATTERN_USAGE = [
     "are rolul de",
     "are scopul de",
@@ -73,7 +85,7 @@ ROMANIAN_PATTERN_USAGE = [
     "servește la",
 ]
 
-# CONTEXT
+# pattern-uri care indica un context de utilizare
 ROMANIAN_PATTERN_CONTEXT = [
     "este utilizat in",
     "este utilizata in",
@@ -83,13 +95,13 @@ ROMANIAN_PATTERN_CONTEXT = [
     "este folosită în",
 ]
 
-# SPECIAL
+# pattern-uri speciale care apar mai rar, dar pot produce definitii utile
 ROMANIAN_PATTERN_SPECIAL = [
     "constituie",
 ]
 
 
-# lista finala pentru extractor
+# lista finala pentru extractorul de limba romana
 ROMANIAN_PATTERNS = sorted(
     ROMANIAN_PATTERN_DEFINITION +
     ROMANIAN_PATTERN_REFERENCE +
@@ -105,7 +117,7 @@ ROMANIAN_PATTERNS = sorted(
 
 # ================= ENGLISH =================
 
-# DEFINITIONS
+# patterns commonly used for definitions
 ENGLISH_PATTERN_DEFINITION = [
     "can be defined as",
     "is defined as",
@@ -119,7 +131,7 @@ ENGLISH_PATTERN_DEFINITION = [
     "represents",
 ]
 
-# REFERENCE
+# patterns that indicate reference or relation
 ENGLISH_PATTERN_REFERENCE = [
     "refers to",
     "relates to",
@@ -128,7 +140,7 @@ ENGLISH_PATTERN_REFERENCE = [
     "is connected to",
 ]
 
-# DESCRIPTION
+# descriptive patterns
 ENGLISH_PATTERN_DESCRIPTION = [
     "can be described as",
     "is described as",
@@ -137,7 +149,7 @@ ENGLISH_PATTERN_DESCRIPTION = [
     "characterizes",
 ]
 
-# STRUCTURE
+# patterns that indicate structure or composition
 ENGLISH_PATTERN_STRUCTURE = [
     "consists of",
     "is composed of",
@@ -146,7 +158,7 @@ ENGLISH_PATTERN_STRUCTURE = [
     "is constructed from",
 ]
 
-# PROCESS / BEHAVIOR
+# patterns related to process or behavior
 ENGLISH_PATTERN_PROCESS = [
     "is based on",
     "is derived from",
@@ -154,7 +166,7 @@ ENGLISH_PATTERN_PROCESS = [
     "includes",
 ]
 
-# USAGE / ROLE
+# usage or role related patterns
 ENGLISH_PATTERN_USAGE = [
     "is used for",
     "is used to",
@@ -166,14 +178,14 @@ ENGLISH_PATTERN_USAGE = [
     "is designed to",
 ]
 
-# CONTEXT
+# context-related patterns
 ENGLISH_PATTERN_CONTEXT = [
     "is applied in",
     "is used in",
     "is implemented in",
 ]
 
-# optional
+# optional classification patterns
 ENGLISH_PATTERN_CLASSIFICATION = [
     "is a type of",
     "is a kind of",
@@ -182,7 +194,7 @@ ENGLISH_PATTERN_CLASSIFICATION = [
     "is a category of",
 ]
 
-# lista finala pentru extractor
+# lista finala pentru extractorul de limba engleza
 ENGLISH_PATTERNS = sorted(
     ENGLISH_PATTERN_DEFINITION +
     ENGLISH_PATTERN_REFERENCE +

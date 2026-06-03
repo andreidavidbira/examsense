@@ -1,3 +1,14 @@
+/*
+ExamSense+ - Section Card Component
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste componenta reutilizabila pentru sectiunile mari din interfata
+- afiseaza optional titlu, subtitlu si zona de actiuni in partea dreapta
+- standardizeaza aspectul cardurilor principale folosite in pagini
+*/
+
 export default function SectionCard({
   title,
   subtitle,

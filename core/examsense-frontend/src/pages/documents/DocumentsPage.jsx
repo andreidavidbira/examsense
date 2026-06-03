@@ -1,3 +1,15 @@
+/*
+ExamSense+ - Documents List Page
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste pagina care afiseaza documentele utilizatorului
+- incarca lista documentelor existente din backend
+- afiseaza stari pentru loading, eroare si lista goala
+- permite navigarea catre pagina de upload si catre detaliile fiecarui document
+*/
+
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -12,6 +24,7 @@ import { primaryButtonClass } from '../../utils/buttonClasses'
 import { getDisplayFileName } from '../../utils/fileHelpers'
 import { formatDateTime } from '../../utils/dateFormat'
 
+// afisam lista documentelor utilizatorului curent
 export default function DocumentsPage() {
   usePageTitle('Documentele mele')
 

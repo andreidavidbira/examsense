@@ -1,3 +1,15 @@
+/*
+ExamSense+ - Frontend Application Router
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste toate rutele principale ale aplicatiei frontend
+- leaga paginile publice, protejate si administrative
+- aplica componentele de protectie pentru utilizatorii autentificati si admini
+- centralizeaza navigarea aplicatiei intr-un singur punct
+*/
+
 import { Route, Routes } from 'react-router-dom'
 
 import AppShell from '../components/layout/AppShell'
@@ -29,16 +41,19 @@ import QuizHistoryPage from '../pages/quiz/QuizHistoryPage'
 import QuizPlayPage from '../pages/quiz/QuizPlayPage'
 import QuizResultPage from '../pages/quiz/QuizResultPage'
 
+// router-ul principal defineste intreaga structura de navigare a aplicatiei
 export default function AppRouter() {
   return (
     <AppShell>
       <Routes>
+        {/* rute publice */}
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
 
+        {/* rute pentru contul utilizatorului autentificat */}
         <Route
           path="/profile"
           element={
@@ -56,6 +71,7 @@ export default function AppRouter() {
           }
         />
 
+        {/* rute pentru documente */}
         <Route
           path="/documents"
           element={
@@ -81,6 +97,7 @@ export default function AppRouter() {
           }
         />
 
+        {/* ruta pentru rezolvarea efectiva a unui quiz */}
         <Route
           path="/quiz/:questionSetId"
           element={
@@ -90,6 +107,7 @@ export default function AppRouter() {
           }
         />
 
+        {/* rute pentru dashboard-ul de invatare */}
         <Route
           path="/dashboard"
           element={
@@ -123,6 +141,7 @@ export default function AppRouter() {
           }
         />
 
+        {/* rute pentru istoric si rezultat quiz */}
         <Route
           path="/quiz-result"
           element={
@@ -148,6 +167,7 @@ export default function AppRouter() {
           }
         />
 
+        {/* ruta administrativa, accesibila doar pentru admin */}
         <Route
           path="/admin-panel"
           element={
@@ -157,6 +177,7 @@ export default function AppRouter() {
           }
         />
 
+        {/* fallback pentru rutele inexistente */}
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </AppShell>

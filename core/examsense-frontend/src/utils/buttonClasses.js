@@ -1,3 +1,15 @@
+/*
+ExamSense+ - Button Style Helpers
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste stilurile reutilizabile pentru butoanele din frontend
+- centralizeaza clasele Tailwind pentru variantele principale, secundare si danger
+- pastreaza consistenta vizuala a actiunilor din intreaga interfata
+*/
+
+// stilul principal folosit pentru actiunile importante din interfata
 export const primaryButtonClass = [
   'rounded-2xl',
   'border',
@@ -24,6 +36,7 @@ export const primaryButtonClass = [
   'disabled:hover:bg-slate-950',
 ].join(' ')
 
+// stilul secundar folosit pentru actiuni neutre sau complementare
 export const secondaryButtonClass = [
   'rounded-2xl',
   'border',
@@ -46,6 +59,7 @@ export const secondaryButtonClass = [
   'active:bg-brand-100',
 ].join(' ')
 
+// stilul danger folosit pentru actiuni destructive sau sensibile
 export const dangerButtonClass = [
   'rounded-2xl',
   'border',

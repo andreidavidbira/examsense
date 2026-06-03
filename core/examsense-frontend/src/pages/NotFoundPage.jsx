@@ -1,3 +1,14 @@
+/*
+ExamSense+ - Not Found Page
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste pagina afisata atunci cand utilizatorul acceseaza o ruta inexistenta
+- ofera un mesaj clar pentru eroarea de navigare
+- permite revenirea rapida catre pagina principala a aplicatiei
+*/
+
 import { Link } from 'react-router-dom'
 
 import PageContainer from '../components/common/PageContainer'

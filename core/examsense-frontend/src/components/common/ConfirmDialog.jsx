@@ -1,6 +1,19 @@
+/*
+ExamSense+ - Confirm Dialog Component
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste dialogul reutilizabil pentru confirmarile din interfata
+- afiseaza un mesaj clar inaintea actiunilor sensibile sau ireversibile
+- permite alegerea stilului butonului de confirmare in functie de tipul actiunii
+- foloseste animatii pentru aparitia si disparitia dialogului
+*/
+
 import { motion, AnimatePresence } from 'framer-motion'
 import { primaryButtonClass, secondaryButtonClass, dangerButtonClass } from '../../utils/buttonClasses'
 
+// afisam un dialog modal pentru confirmarile explicite ale utilizatorului
 export default function ConfirmDialog({
   open,
   title = 'Confirmare',
@@ -11,6 +24,7 @@ export default function ConfirmDialog({
   onCancel,
   variant = 'danger',
 }) {
+  // alegem stilul butonului principal in functie de tipul actiunii confirmate
   const confirmClass = variant === 'danger' ? dangerButtonClass : primaryButtonClass
 
   return (

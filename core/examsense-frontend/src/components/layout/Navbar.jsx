@@ -1,3 +1,15 @@
+/*
+ExamSense+ - Navbar Component
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste bara principala de navigatie a aplicatiei
+- afiseaza linkurile importante in functie de autentificare si rol
+- permite logout cu confirmare explicita
+- gestioneaza meniul mobil pentru ecranele mici
+*/
+
 import { useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
@@ -20,6 +32,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useToast } from '../../hooks/useToast'
 import { secondaryButtonClass } from '../../utils/buttonClasses'
 
+// bara de navigatie principala afiseaza meniul potrivit pentru utilizatorul curent
 export default function Navbar() {
   const { user, isAuthenticated, logout } = useAuth()
   const { showToast } = useToast()

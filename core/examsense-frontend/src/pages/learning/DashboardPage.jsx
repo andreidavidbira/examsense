@@ -1,3 +1,15 @@
+/*
+ExamSense+ - Learning Dashboard Page
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste pagina principala de dashboard pentru progresul utilizatorului
+- afiseaza statistici separate pentru overall, NLP si AI
+- prezinta grafice pentru scoruri, raspunsuri si comparatia user vs AI
+- evidentiaza conceptele slabe si ultimele attempt-uri finalizate
+*/
+
 import { useEffect, useMemo, useState } from 'react'
 import {
   Bar,
@@ -27,6 +39,7 @@ const ANSWER_COLORS = ['#10b981', '#f43f5e']
 const DUEL_COLORS = ['#0f172a', '#8b5cf6', '#f59e0b']
 const MODE_COMPARE_COLORS = ['#0f172a', '#8b5cf6']
 
+// randam o sectiune reutilizabila pentru fiecare mod de evaluare
 function ModeSection({ title, stats, accent }) {
   return (
     <SectionCard title={title} className="min-w-0">
@@ -49,6 +62,7 @@ function ModeSection({ title, stats, accent }) {
   )
 }
 
+// afisam un rezumat rapid al duelului dintre user si AI
 function DuelSummaryCard({ overall }) {
   const totalDuels = (overall?.user_wins || 0) + (overall?.ai_wins || 0) + (overall?.ties || 0)
   const userLead = (overall?.average_score || 0) - (overall?.ai_average_score || 0)
@@ -102,6 +116,7 @@ export default function DashboardPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
+    // incarcam datele complete pentru dashboardul de progres
     async function fetchDashboard() {
       try {
         const response = await api.get('/learning/dashboard/')
@@ -114,6 +129,7 @@ export default function DashboardPage() {
     fetchDashboard()
   }, [])
 
+  // pregatim datele pentru comparatia rapida a scorurilor
   const scoreChartData = useMemo(() => {
     if (!data) return []
 
@@ -124,6 +140,7 @@ export default function DashboardPage() {
     ]
   }, [data])
 
+  // pregatim distributia raspunsurilor corecte si gresite
   const answersChartData = useMemo(() => {
     if (!data) return []
 
@@ -133,6 +150,7 @@ export default function DashboardPage() {
     ]
   }, [data])
 
+  // pregatim distributia duelurilor user vs AI
   const duelChartData = useMemo(() => {
     if (!data) return []
 
@@ -143,6 +161,7 @@ export default function DashboardPage() {
     ]
   }, [data])
 
+  // pregatim comparatia scorurilor medii pe overall, NLP si AI
   const modeCompareData = useMemo(() => {
     if (!data) return []
 

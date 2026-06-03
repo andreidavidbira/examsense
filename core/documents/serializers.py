@@ -1,3 +1,15 @@
+"""
+ExamSense+ - Documents Serializers
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste serializer-ele pentru documente, intrebari, attempturi si statistici
+- transforma modelele din baza de date in raspunsuri JSON pentru frontend
+- valideaza datele primite la submit-ul quiz-urilor
+- structureaza raspunsurile pentru istoric, detalii document si comparatia User vs AI
+"""
+
 from rest_framework import serializers
 
 from .models import (
@@ -12,6 +24,7 @@ from .models import (
 )
 
 
+# serializer pentru definitiile extrase dintr-un document
 class ExtractedDefinitionSerializer(serializers.ModelSerializer):
     class Meta:
         model = ExtractedDefinition
@@ -27,6 +40,7 @@ class ExtractedDefinitionSerializer(serializers.ModelSerializer):
         ]
 
 
+# serializer pentru intrebarile generate, inclusiv referinta la question set
 class GeneratedQuestionSerializer(serializers.ModelSerializer):
     question_set_id = serializers.IntegerField(source="question_set.id", read_only=True)
 
@@ -45,6 +59,7 @@ class GeneratedQuestionSerializer(serializers.ModelSerializer):
         ]
 
 
+# serializer pentru un set de intrebari generate pentru un document
 class QuestionSetSerializer(serializers.ModelSerializer):
     questions_count = serializers.SerializerMethodField()
 
@@ -63,6 +78,7 @@ class QuestionSetSerializer(serializers.ModelSerializer):
         return obj.questions.count()
 
 
+# serializer pentru raspunsurile date de utilizator intr-un quiz
 class QuizAnswerSerializer(serializers.ModelSerializer):
     question = GeneratedQuestionSerializer(read_only=True)
 
@@ -76,6 +92,7 @@ class QuizAnswerSerializer(serializers.ModelSerializer):
         ]
 
 
+# serializer pentru raspunsurile date de solverul AI
 class AIQuizAnswerSerializer(serializers.ModelSerializer):
     question = GeneratedQuestionSerializer(read_only=True)
 
@@ -89,6 +106,7 @@ class AIQuizAnswerSerializer(serializers.ModelSerializer):
         ]
 
 
+# serializer pentru attemptul AI asociat unui quiz rezolvat de user
 class AIQuizAttemptSerializer(serializers.ModelSerializer):
     answers = AIQuizAnswerSerializer(many=True, read_only=True)
 
@@ -105,6 +123,7 @@ class AIQuizAttemptSerializer(serializers.ModelSerializer):
         ]
 
 
+# serializer complet pentru un attempt al utilizatorului, inclusiv date despre AI
 class QuizAttemptSerializer(serializers.ModelSerializer):
     document_file = serializers.SerializerMethodField()
     user_document_number = serializers.SerializerMethodField()
@@ -155,6 +174,7 @@ class QuizAttemptSerializer(serializers.ModelSerializer):
         )
 
 
+# serializer simplu pentru lista documentelor utilizatorului
 class DocumentListSerializer(serializers.ModelSerializer):
     user_document_number = serializers.SerializerMethodField()
 
@@ -175,6 +195,7 @@ class DocumentListSerializer(serializers.ModelSerializer):
         )
 
 
+# serializer detaliat pentru un document, cu definitii, intrebari si question sets
 class DocumentDetailSerializer(serializers.ModelSerializer):
     definitions = ExtractedDefinitionSerializer(many=True, read_only=True)
     generated_questions = GeneratedQuestionSerializer(many=True, read_only=True)
@@ -205,22 +226,27 @@ class DocumentDetailSerializer(serializers.ModelSerializer):
 
     def get_latest_question_set_id(self, obj):
         latest_set = obj.question_sets.order_by("-created_at").first()
+
         if not latest_set:
             return None
+
         return latest_set.id
 
 
+# serializer pentru fiecare raspuns trimis de utilizator la submit-ul quiz-ului
 class SubmitQuizAnswerInputSerializer(serializers.Serializer):
     question_id = serializers.IntegerField()
     selected_answer = serializers.JSONField()
 
 
+# valideaza payload-ul trimis la submit-ul unui quiz
 class SubmitQuizInputSerializer(serializers.Serializer):
     question_set_id = serializers.IntegerField()
     elapsed_seconds = serializers.IntegerField(required=False, min_value=0)
     answers = SubmitQuizAnswerInputSerializer(many=True)
 
 
+# serializer pentru rezultatul unei intrebari rezolvate de utilizator
 class SubmitQuizResultItemSerializer(serializers.Serializer):
     question_id = serializers.IntegerField()
     question = serializers.CharField()
@@ -229,6 +255,7 @@ class SubmitQuizResultItemSerializer(serializers.Serializer):
     is_correct = serializers.BooleanField()
 
 
+# serializer pentru rezultatul aceleiasi intrebari rezolvate de solverul AI
 class SubmitQuizAIResultItemSerializer(serializers.Serializer):
     question_id = serializers.IntegerField()
     question = serializers.CharField()
@@ -237,6 +264,7 @@ class SubmitQuizAIResultItemSerializer(serializers.Serializer):
     is_correct = serializers.BooleanField()
 
 
+# serializer pentru raspunsul complet returnat dupa submit-ul unui quiz
 class SubmitQuizResponseSerializer(serializers.Serializer):
     attempt_id = serializers.IntegerField()
     question_set_id = serializers.IntegerField()
@@ -255,11 +283,13 @@ class SubmitQuizResponseSerializer(serializers.Serializer):
     ai_results = SubmitQuizAIResultItemSerializer(many=True)
 
 
+# concept la care utilizatorul a gresit frecvent
 class QuizStatsConceptSerializer(serializers.Serializer):
     concept = serializers.CharField()
     wrong_count = serializers.IntegerField()
 
 
+# bloc de statistici pentru overall, nlp sau ai
 class ModeStatsSerializer(serializers.Serializer):
     total_attempts = serializers.IntegerField()
     correct_answers = serializers.IntegerField()
@@ -274,6 +304,7 @@ class ModeStatsSerializer(serializers.Serializer):
     ties = serializers.IntegerField()
 
 
+# serializer pentru raspunsul complet din pagina de statistici a quiz-urilor
 class QuizStatsResponseSerializer(serializers.Serializer):
     overall = ModeStatsSerializer()
     nlp = ModeStatsSerializer()

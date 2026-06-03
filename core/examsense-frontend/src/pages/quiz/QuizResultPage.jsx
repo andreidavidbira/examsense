@@ -1,3 +1,15 @@
+/*
+ExamSense+ - Quiz Result Page
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste pagina de rezultat afisata dupa finalizarea unui quiz
+- prezinta scorul utilizatorului si scorul AI pentru acelasi set de intrebari
+- permite reluarea quiz-ului sau generarea unui nou set de intrebari
+- afiseaza comparatia detaliata dintre raspunsurile userului, ale AI-ului si cele corecte
+*/
+
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 
@@ -14,6 +26,7 @@ import {
 } from '../../utils/buttonClasses'
 import { formatDuration } from '../../utils/timeFormat'
 
+// transformam lista de raspunsuri AI intr-un map pentru acces rapid dupa question_id
 function compareResultMap(aiResults = []) {
   const map = {}
 
@@ -24,12 +37,14 @@ function compareResultMap(aiResults = []) {
   return map
 }
 
+// alegem stilul badge-ului in functie de modul de generare
 function modeBadgeClass(mode) {
   return mode === 'ai'
     ? 'rounded-full bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700'
     : 'rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700'
 }
 
+// afisam pagina de rezultat pentru quiz-ul tocmai finalizat
 export default function QuizResultPage() {
   usePageTitle('Rezultatul quiz-ului')
 
@@ -42,6 +57,7 @@ export default function QuizResultPage() {
   const [quizOptionsOpen, setQuizOptionsOpen] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
 
+  // daca nu exista date in sesiunea curenta, afisam o stare goala
   if (!result) {
     return (
       <PageContainer>

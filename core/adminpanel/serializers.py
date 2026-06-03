@@ -1,7 +1,20 @@
+"""
+ExamSense+ - Admin Panel Serializers
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste serializer-ele folosite de panoul de administrare
+- structureaza statisticile globale si individuale afisate in admin panel
+- serializeaza listele de utilizatori, documente, seturi de intrebari si attempturi
+- defineste structura comparatiilor dintre utilizatori si solverul AI
+- valideaza schimbarea starii active / inactive pentru utilizatori
+"""
+
 from rest_framework import serializers
 
 
-# statistici simple reutilizabile pentru o categorie de quiz-uri
+# grup de statistici reutilizabil pentru un anumit tip de quiz-uri sau pentru un anumit bloc
 class AdminStatsBlockSerializer(serializers.Serializer):
     attempts_count = serializers.IntegerField()
     correct_answers = serializers.IntegerField()
@@ -11,7 +24,7 @@ class AdminStatsBlockSerializer(serializers.Serializer):
     worst_score = serializers.IntegerField()
 
 
-# comparatie user vs ai pentru un set de quiz-uri
+# bloc folosit pentru comparatia dintre utilizator si AI pe un set de attempturi
 class AdminUserVsAiBlockSerializer(serializers.Serializer):
     compared_attempts = serializers.IntegerField()
     user_wins = serializers.IntegerField()
@@ -19,13 +32,13 @@ class AdminUserVsAiBlockSerializer(serializers.Serializer):
     draws = serializers.IntegerField()
 
 
-# concept la care s-a gresit frecvent
+# concept la care s-a gresit frecvent, folosit in dashboardurile de analiza
 class AdminWrongConceptSerializer(serializers.Serializer):
     concept = serializers.CharField()
     wrong_count = serializers.IntegerField()
 
 
-# statistici generale pentru dashboardul de admin
+# statistici generale afisate in partea de overview din admin panel
 class AdminOverviewSerializer(serializers.Serializer):
     total_users = serializers.IntegerField()
     active_users = serializers.IntegerField()
@@ -45,14 +58,14 @@ class AdminOverviewSerializer(serializers.Serializer):
     ai_average_score = serializers.FloatField()
 
 
-# statistici globale pentru solverul AI
+# statistici globale pentru solverul AI, separate pe overall / nlp / ai
 class AdminAiOverviewSerializer(serializers.Serializer):
     overall = AdminStatsBlockSerializer()
     nlp = AdminStatsBlockSerializer()
     ai = AdminStatsBlockSerializer()
 
 
-# lista de utilizatori din panoul de admin
+# serializer pentru lista de utilizatori afisata in admin panel
 class AdminUserSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     username = serializers.CharField()
@@ -70,7 +83,7 @@ class AdminUserSerializer(serializers.Serializer):
     wrong_answers = serializers.IntegerField()
 
 
-# date simple despre utilizator, folosite in dashboardul detaliat
+# date de identificare pentru un utilizator, folosite in dashboardul detaliat
 class AdminUserIdentitySerializer(serializers.Serializer):
     id = serializers.IntegerField()
     username = serializers.CharField()
@@ -82,7 +95,7 @@ class AdminUserIdentitySerializer(serializers.Serializer):
     date_joined = serializers.DateTimeField()
 
 
-# attempt recent din dashboardul unui user
+# ultimele attempturi ale unui utilizator, folosite in dashboardul sau din admin
 class AdminRecentAttemptSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     question_set_id = serializers.IntegerField()
@@ -95,7 +108,7 @@ class AdminRecentAttemptSerializer(serializers.Serializer):
     completed_at = serializers.DateTimeField()
 
 
-# dashboard complet pentru un utilizator
+# dashboardul complet pentru un utilizator selectat din admin panel
 class AdminUserDetailSerializer(serializers.Serializer):
     user = AdminUserIdentitySerializer()
     documents_count = serializers.IntegerField()
@@ -119,7 +132,7 @@ class AdminUserDetailSerializer(serializers.Serializer):
     recent_attempts = AdminRecentAttemptSerializer(many=True)
 
 
-# lista de documente din panoul de admin
+# serializer pentru lista de documente din panoul de administrare
 class AdminDocumentSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     username = serializers.CharField()
@@ -135,7 +148,7 @@ class AdminDocumentSerializer(serializers.Serializer):
     question_sets_count = serializers.IntegerField()
 
 
-# lista de seturi de intrebari generate
+# serializer pentru seturile de intrebari generate in platforma
 class AdminQuestionSetSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     document_id = serializers.IntegerField()
@@ -147,7 +160,7 @@ class AdminQuestionSetSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField()
 
 
-# istoricul global al attempturilor
+# serializer pentru istoricul global al attempturilor din admin
 class AdminAttemptSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     username = serializers.CharField()
@@ -166,6 +179,6 @@ class AdminAttemptSerializer(serializers.Serializer):
     completed_at = serializers.DateTimeField()
 
 
-# validarea starii active / inactive pentru user
+# valideaza schimbarea starii active / inactive pentru un utilizator
 class ToggleUserActiveSerializer(serializers.Serializer):
     is_active = serializers.BooleanField()

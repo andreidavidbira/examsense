@@ -1,3 +1,16 @@
+"""
+ExamSense+ - Users Views
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- implementeaza endpoint-urile API pentru autentificare si gestionarea contului
+- gestioneaza register, login, logout si refresh token
+- expune datele utilizatorului autentificat si actualizarea profilului
+- permite schimbarea parolei si resetarea parolei prin email
+- seteaza si sterge cookie-urile JWT folosite de frontend
+"""
+
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
@@ -33,7 +46,7 @@ User = get_user_model()
 password_reset_token_generator = PasswordResetTokenGenerator()
 
 
-# setam cookie-urile de autentificare dupa login sau refresh
+# seteaza cookie-urile de autentificare dupa login sau refresh
 def set_auth_cookies(response, access_token=None, refresh_token=None):
     common_kwargs = {
         "httponly": True,
@@ -59,7 +72,7 @@ def set_auth_cookies(response, access_token=None, refresh_token=None):
         )
 
 
-# stergem cookie-urile de autentificare la logout sau dupa schimbarea parolei
+# sterge cookie-urile de autentificare la logout sau dupa schimbarea parolei
 def clear_auth_cookies(response):
     response.delete_cookie(settings.AUTH_COOKIE_ACCESS, path=settings.AUTH_COOKIE_PATH)
     response.delete_cookie(settings.AUTH_COOKIE_REFRESH, path=settings.AUTH_COOKIE_PATH)
@@ -69,7 +82,7 @@ def clear_auth_cookies(response):
 class CsrfCookieView(APIView):
     permission_classes = [AllowAny]
 
-    # setam cookie-ul csrf pentru frontend
+    # seteaza cookie-ul CSRF pentru frontend
     def get(self, request):
         return Response({"message": "CSRF cookie set."}, status=200)
 
@@ -79,7 +92,7 @@ class RegisterView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [RegisterRateThrottle]
 
-    # cream un cont nou daca datele trimise sunt valide
+    # creeaza un cont nou daca datele trimise sunt valide
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
 
@@ -95,7 +108,7 @@ class LoginView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [LoginRateThrottle]
 
-    # autentificam utilizatorul si salvam tokenurile in cookie
+    # autentifica utilizatorul si salveaza tokenurile in cookie
     def post(self, request):
         username = request.data.get("username")
         password = request.data.get("password")
@@ -133,7 +146,7 @@ class LoginView(APIView):
 class RefreshCookieTokenView(APIView):
     permission_classes = [AllowAny]
 
-    # generam un nou access token pe baza refresh tokenului din cookie
+    # genereaza un nou access token pe baza refresh tokenului din cookie
     def post(self, request):
         refresh_token = request.COOKIES.get(settings.AUTH_COOKIE_REFRESH)
 
@@ -162,7 +175,7 @@ class RefreshCookieTokenView(APIView):
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
-    # facem logout si invalidam refresh tokenul curent daca exista
+    # face logout si invalideaza refresh tokenul curent daca exista
     def post(self, request):
         refresh_token = request.COOKIES.get(settings.AUTH_COOKIE_REFRESH)
 
@@ -183,7 +196,7 @@ class LogoutView(APIView):
 class MeView(APIView):
     permission_classes = [IsAuthenticated]
 
-    # returnam datele utilizatorului autentificat
+    # returneaza datele utilizatorului autentificat
     def get(self, request):
         serializer = UserSerializer(request.user)
         return Response(serializer.data)
@@ -192,7 +205,7 @@ class MeView(APIView):
 class UpdateProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
-    # actualizam toate datele principale ale profilului
+    # actualizeaza toate datele principale ale profilului
     def put(self, request):
         serializer = UpdateProfileSerializer(
             request.user,
@@ -205,7 +218,7 @@ class UpdateProfileView(APIView):
 
         return Response(serializer.errors, status=400)
 
-    # permitem si actualizarea partiala a profilului
+    # permite si actualizarea partiala a profilului
     def patch(self, request):
         serializer = UpdateProfileSerializer(
             request.user,
@@ -224,7 +237,7 @@ class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
     throttle_classes = [PasswordChangeRateThrottle]
 
-    # schimbam parola si fortam reautentificarea utilizatorului
+    # schimba parola si forteaza reautentificarea utilizatorului
     def post(self, request):
         serializer = ChangePasswordSerializer(data=request.data)
 
@@ -267,7 +280,7 @@ class ForgotPasswordRequestView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [RegisterRateThrottle]
 
-    # trimitem linkul de resetare daca exista un cont cu emailul respectiv
+    # trimite linkul de resetare daca exista un cont cu emailul respectiv
     def post(self, request):
         serializer = ForgotPasswordRequestSerializer(data=request.data)
 
@@ -283,11 +296,11 @@ class ForgotPasswordRequestView(APIView):
             reset_link = f"http://localhost:5173/reset-password?uid={uid}&token={token}"
 
             send_mail(
-                subject="ExamSense+ - Resetare parolă",
+                subject="ExamSense+ - Resetare parola",
                 message=(
                     "Ai cerut resetarea parolei.\n\n"
-                    f"Accesează linkul următor pentru a seta o parolă nouă:\n{reset_link}\n\n"
-                    "Dacă nu ai cerut tu acest lucru, poți ignora acest email."
+                    f"Acceseaza linkul urmator pentru a seta o parola noua:\n{reset_link}\n\n"
+                    "Daca nu ai cerut tu acest lucru, poti ignora acest email."
                 ),
                 from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@examsense.local"),
                 recipient_list=[email],
@@ -295,7 +308,7 @@ class ForgotPasswordRequestView(APIView):
             )
 
         return Response({
-            "message": "Dacă există un cont cu acest email, a fost trimis un link de resetare.",
+            "message": "Daca exista un cont cu acest email, a fost trimis un link de resetare.",
         }, status=200)
 
 
@@ -303,7 +316,7 @@ class ForgotPasswordRequestView(APIView):
 class ResetPasswordView(APIView):
     permission_classes = [AllowAny]
 
-    # resetam parola pe baza tokenului primit prin email
+    # reseteaza parola pe baza tokenului primit prin email
     def post(self, request):
         serializer = ResetPasswordSerializer(data=request.data)
 
@@ -326,4 +339,4 @@ class ResetPasswordView(APIView):
         user.set_password(new_password)
         user.save()
 
-        return Response({"message": "Parola a fost resetată cu succes."}, status=200)
+        return Response({"message": "Parola a fost resetata cu succes."}, status=200)

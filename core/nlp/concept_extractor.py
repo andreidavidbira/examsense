@@ -1,3 +1,14 @@
+"""
+ExamSense+ - NLP Keyword Extraction
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- initializeaza modelul KeyBERT folosit pentru extragerea cuvintelor cheie
+- extrage termeni si expresii relevante din text
+- ofera suport pentru analiza NLP suplimentara in cadrul proiectului ExamSense+
+"""
+
 from keybert import KeyBERT
 
 
@@ -5,7 +16,7 @@ from keybert import KeyBERT
 kw_model = KeyBERT()
 
 
-# extragem cele mai relevante cuvinte sau expresii din text
+# extrage cele mai relevante cuvinte sau expresii din textul primit
 def extract_keywords(text, top_n=5):
     keywords = kw_model.extract_keywords(
         text,

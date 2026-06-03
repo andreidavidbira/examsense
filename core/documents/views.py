@@ -1,3 +1,17 @@
+"""
+ExamSense+ - Documents Views
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- implementeaza endpoint-urile API pentru documente, quiz-uri si statistici
+- valideaza si proceseaza fisierele incarcate de utilizator
+- extrage text din PDF si DOCX
+- genereaza definitii si intrebari prin flux NLP sau AI
+- gestioneaza submit-ul quiz-urilor si comparatia User vs AI
+- expune istoricul si statisticile de invatare ale utilizatorului
+"""
+
 import time
 
 from django.conf import settings
@@ -37,6 +51,7 @@ from .serializers import (
 from .utils import extract_text_from_docx, extract_text_from_pdf
 
 
+# verifica extensia, content type-ul si dimensiunea fisierului incarcat
 def validate_uploaded_file(file):
     allowed_extensions = [".pdf", ".docx"]
     allowed_content_types = [
@@ -58,6 +73,7 @@ def validate_uploaded_file(file):
         raise ValueError("File is too large.")
 
 
+# calculeaza indexul documentului in istoricul utilizatorului curent
 def get_user_document_number(user, document_id):
     return (
         Document.objects
@@ -66,6 +82,7 @@ def get_user_document_number(user, document_id):
     )
 
 
+# calculeaza indexul attemptului in istoricul utilizatorului curent
 def get_user_attempt_number(user, attempt_id):
     return (
         QuizAttempt.objects
@@ -74,6 +91,7 @@ def get_user_attempt_number(user, attempt_id):
     )
 
 
+# genereaza si salveaza definitiile NLP doar daca nu exista deja pentru document
 def ensure_nlp_definitions(document):
     existing = document.definitions.filter(generation_mode="nlp").exists()
 
@@ -81,7 +99,6 @@ def ensure_nlp_definitions(document):
         return list(document.definitions.filter(generation_mode="nlp").order_by("id"))
 
     text = document.extracted_text or ""
-
     result = process_text(text)
     definitions = result.get("definitions", [])
 
@@ -102,6 +119,7 @@ def ensure_nlp_definitions(document):
     return created
 
 
+# salveaza in baza de date definitiile generate de AI pentru documentul curent
 def save_ai_definitions(document, definitions):
     saved = []
 
@@ -120,6 +138,7 @@ def save_ai_definitions(document, definitions):
     return saved
 
 
+# construieste intrebarile NLP pornind de la definitiile deja salvate pentru document
 def build_questions_for_document_nlp(document, question_set, difficulty="medium", max_q=10):
     db_definitions = list(
         document.definitions
@@ -159,6 +178,7 @@ def build_questions_for_document_nlp(document, question_set, difficulty="medium"
     for question_data in questions:
         source_definition_obj = None
 
+        # incercam sa legam fiecare intrebare de definitia ei sursa
         if question_data.get("type") == "mcq":
             for definition in definitions:
                 if (
@@ -204,6 +224,7 @@ def build_questions_for_document_nlp(document, question_set, difficulty="medium"
     return saved_questions
 
 
+# construieste intrebarile AI pornind direct din continutul documentului
 def build_questions_for_document_ai(document, question_set, difficulty="medium", max_q=10):
     text = document.extracted_text or ""
 
@@ -252,6 +273,7 @@ def build_questions_for_document_ai(document, question_set, difficulty="medium",
     return saved_questions
 
 
+# creeaza un question set nou si genereaza intrebarile in functie de modul ales
 def create_question_set_for_document(document, generation_mode="nlp", difficulty="medium", max_q=10):
     question_set = QuestionSet.objects.create(
         document=document,
@@ -283,6 +305,7 @@ class UploadDocumentView(APIView):
     permission_classes = [IsAuthenticated]
     throttle_classes = [UploadRateThrottle]
 
+    # valideaza, proceseaza si salveaza un document nou incarcat de utilizator
     def post(self, request):
         file = request.FILES.get("file")
 
@@ -303,7 +326,7 @@ class UploadDocumentView(APIView):
         difficulty = request.data.get("difficulty", "medium")
         max_q = int(request.data.get("max_questions", 10))
 
-        # extragem textul INAINTE de a salva documentul
+        # extragem textul inainte sa salvam documentul in baza de date
         try:
             if filename.endswith(".pdf"):
                 text = extract_text_from_pdf(file)
@@ -320,7 +343,7 @@ class UploadDocumentView(APIView):
         if len(text) > max_length:
             text = text[:max_length]
 
-        # resetam pointerul fisierului inainte de salvare
+        # readucem fisierul la inceput ca sa poata fi salvat corect
         try:
             file.seek(0)
         except Exception:
@@ -379,6 +402,7 @@ class UploadDocumentView(APIView):
 class RegenerateQuestionsView(APIView):
     permission_classes = [IsAuthenticated]
 
+    # genereaza un nou set de intrebari pentru un document existent
     def post(self, request, document_id):
         document = get_object_or_404(
             Document.objects.prefetch_related("definitions"),
@@ -399,12 +423,12 @@ class RegenerateQuestionsView(APIView):
             )
         except Exception as e:
             return Response({
-                "error": "Nu am putut genera un nou set de întrebări.",
+                "error": "Nu am putut genera un nou set de intrebari.",
                 "details": str(e),
             }, status=500)
 
         return Response({
-            "message": "A fost generat un nou set de întrebări.",
+            "message": "A fost generat un nou set de intrebari.",
             "document_id": document.id,
             "question_set_id": question_set.id,
             "generation_mode": question_set.generation_mode,
@@ -416,6 +440,7 @@ class RegenerateQuestionsView(APIView):
 class DocumentListView(APIView):
     permission_classes = [IsAuthenticated]
 
+    # intoarce lista documentelor utilizatorului autentificat
     def get(self, request):
         documents = Document.objects.filter(user=request.user).order_by("-uploaded_at")
         serializer = DocumentListSerializer(documents, many=True)
@@ -425,6 +450,7 @@ class DocumentListView(APIView):
 class DocumentDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
+    # intoarce toate datele necesare pentru pagina de detalii a unui document
     def get(self, request, document_id):
         document = get_object_or_404(
             Document.objects.prefetch_related(
@@ -443,6 +469,7 @@ class DocumentDetailView(APIView):
 class QuestionSetDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
+    # intoarce intrebarile si metadatele unui question set
     def get(self, request, question_set_id):
         question_set = get_object_or_404(
             QuestionSet.objects.select_related("document"),
@@ -466,6 +493,7 @@ class QuestionSetDetailView(APIView):
 class DeleteDocumentView(APIView):
     permission_classes = [IsAuthenticated]
 
+    # sterge un document al utilizatorului curent
     def delete(self, request, document_id):
         document = get_object_or_404(Document, id=document_id, user=request.user)
         document.delete()
@@ -476,6 +504,7 @@ class SubmitQuizView(APIView):
     permission_classes = [IsAuthenticated]
     throttle_classes = [QuizSubmitRateThrottle]
 
+    # evalueaza raspunsurile utilizatorului si ruleaza solverul AI pe acelasi quiz
     def post(self, request):
         input_serializer = SubmitQuizInputSerializer(data=request.data)
 
@@ -655,6 +684,7 @@ class SubmitQuizView(APIView):
 class QuizHistoryView(APIView):
     permission_classes = [IsAuthenticated]
 
+    # intoarce istoricul quiz-urilor rezolvate de utilizator
     def get(self, request):
         attempts = QuizAttempt.objects.filter(user=request.user).order_by("-completed_at")
         serializer = QuizAttemptSerializer(attempts, many=True)
@@ -668,6 +698,7 @@ class QuizHistoryView(APIView):
 class QuizAttemptDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
+    # intoarce detaliile complete pentru un attempt din istoric
     def get(self, request, attempt_id):
         attempt = get_object_or_404(
             QuizAttempt.objects.prefetch_related(
@@ -682,6 +713,7 @@ class QuizAttemptDetailView(APIView):
         return Response(serializer.data)
 
 
+# calculeaza statistici pe overall, nlp si ai pentru dashboardul quiz-urilor
 def build_mode_stats(attempts_queryset):
     answers_queryset = QuizAnswer.objects.filter(attempt__in=attempts_queryset)
     ai_attempts_queryset = AIQuizAttempt.objects.filter(quiz_attempt__in=attempts_queryset)
@@ -730,6 +762,7 @@ def build_mode_stats(attempts_queryset):
 class QuizStatsView(APIView):
     permission_classes = [IsAuthenticated]
 
+    # intoarce statisticile generale ale utilizatorului pentru dashboardul de quiz
     def get(self, request):
         overall_attempts = QuizAttempt.objects.filter(user=request.user)
         nlp_attempts = overall_attempts.filter(question_set__generation_mode="nlp")

@@ -1,3 +1,15 @@
+/*
+ExamSense+ - Register Page
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste pagina de inregistrare a utilizatorului
+- valideaza local datele introduse in formular
+- apeleaza flow-ul de creare cont prin contextul de autentificare
+- afiseaza beneficiile principale ale platformei pentru utilizatorii noi
+*/
+
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
@@ -10,6 +22,7 @@ import usePageTitle from '../../hooks/usePageTitle'
 import { getApiErrorMessages } from '../../utils/errorMessages'
 import { validateEmail } from '../../utils/validators'
 
+// lista scurta de beneficii afisata in partea introductiva a paginii
 const benefits = [
   'Îți creezi rapid cont și începi să încarci documente',
   'Generezi quiz-uri cu NLP sau AI',
@@ -17,6 +30,7 @@ const benefits = [
   'Compari performanța ta cu un solver AI',
 ]
 
+// afisam formularul de creare cont pentru utilizatorii noi
 export default function RegisterPage() {
   usePageTitle('Înregistrare')
 
@@ -37,6 +51,7 @@ export default function RegisterPage() {
   const [errors, setErrors] = useState([])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // validam local campurile principale pentru feedback imediat in UI
   const liveErrors = useMemo(() => {
     const nextErrors = {}
 
@@ -72,6 +87,7 @@ export default function RegisterPage() {
     return nextErrors
   }, [formData])
 
+  // actualizam campul modificat din formular
   function handleChange(e) {
     const { name, value } = e.target
     setFormData((prev) => ({
@@ -80,6 +96,7 @@ export default function RegisterPage() {
     }))
   }
 
+  // marcam un camp ca fiind atins pentru afisarea erorilor
   function handleBlur(fieldName) {
     setTouched((prev) => ({
       ...prev,
@@ -87,6 +104,7 @@ export default function RegisterPage() {
     }))
   }
 
+  // trimitem datele catre flow-ul de register si redirectionam spre login la succes
   async function handleSubmit(e) {
     e.preventDefault()
     setErrors([])

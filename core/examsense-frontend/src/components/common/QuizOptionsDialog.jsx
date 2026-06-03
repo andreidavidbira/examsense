@@ -1,3 +1,15 @@
+/*
+ExamSense+ - Quiz Options Dialog Component
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste dialogul reutilizabil pentru configurarea unui quiz
+- permite alegerea metodei de generare, dificultatii si numarului de intrebari
+- valideaza local datele introduse inainte de confirmare
+- afiseaza dialogul cu animatii pentru o experienta mai fluida
+*/
+
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 
@@ -6,6 +18,7 @@ import {
   secondaryButtonClass,
 } from '../../utils/buttonClasses'
 
+// afisam un dialog reutilizabil pentru configurarea rapida a unui quiz
 export default function QuizOptionsDialog({
   open,
   title = 'Configurează quiz-ul',
@@ -24,6 +37,7 @@ export default function QuizOptionsDialog({
   const [generationMode, setGenerationMode] = useState(initialGenerationMode)
   const [errors, setErrors] = useState({})
 
+  // resetam valorile dialogului atunci cand este redeschis
   useEffect(() => {
     if (open) {
       setDifficulty(initialDifficulty)
@@ -33,6 +47,7 @@ export default function QuizOptionsDialog({
     }
   }, [open, initialDifficulty, initialMaxQuestions, initialGenerationMode])
 
+  // validam local campurile inainte de confirmare
   function validate() {
     const newErrors = {}
 
@@ -58,6 +73,7 @@ export default function QuizOptionsDialog({
     return Object.keys(newErrors).length === 0
   }
 
+  // confirmam doar daca datele sunt valide
   function handleConfirm() {
     if (!validate()) {
       return

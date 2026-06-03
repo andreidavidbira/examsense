@@ -1,3 +1,14 @@
+"""
+ExamSense+ - Learning Routes
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste rutele API pentru modulul de learning
+- conecteaza dashboardul de progres, recomandarile si conceptele slabe la view-urile backend
+- expune endpoint-ul pentru quiz-ul de recapitulare
+"""
+
 from django.urls import path
 
 from .views import (
@@ -8,7 +19,7 @@ from .views import (
 )
 
 
-# aici definim rutele pentru dashboard, recomandari si quiz-ul de recapitulare
+# definim rutele principale pentru modulul de learning
 urlpatterns = [
     path("dashboard/", LearningDashboardView.as_view()),
     path("weak-concepts/", WeakConceptsView.as_view()),

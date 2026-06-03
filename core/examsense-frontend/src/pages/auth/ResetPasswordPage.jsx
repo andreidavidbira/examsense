@@ -1,3 +1,15 @@
+/*
+ExamSense+ - Reset Password Page
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste pagina pentru resetarea parolei
+- citeste uid-ul si tokenul din linkul de resetare
+- valideaza local parola noua si confirmarea ei
+- trimite cererea catre backend pentru actualizarea parolei
+*/
+
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
@@ -15,6 +27,7 @@ import {
   validateStrongPassword,
 } from '../../utils/validators'
 
+// afisam formularul de resetare pentru parola noua
 export default function ResetPasswordPage() {
   usePageTitle('Resetare parolă')
 

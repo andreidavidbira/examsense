@@ -1,3 +1,14 @@
+"""
+ExamSense+ - Users Routes
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste rutele API pentru autentificare si gestionarea contului
+- conecteaza endpoint-urile de login, register, logout si refresh la view-urile backend
+- expune operatiile pentru profil, schimbare parola si resetare parola
+"""
+
 from django.urls import path
 
 from .views import (
@@ -14,7 +25,7 @@ from .views import (
 )
 
 
-# aici definim toate rutele pentru autentificare si gestionarea contului
+# definim rutele principale pentru autentificare si cont
 urlpatterns = [
     path("csrf/", CsrfCookieView.as_view()),
     path("register/", RegisterView.as_view()),

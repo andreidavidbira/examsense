@@ -1,3 +1,15 @@
+/*
+ExamSense+ - Forgot Password Page
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste pagina pentru initierea resetarii parolei
+- valideaza local adresa de email introdusa
+- trimite cererea catre backend pentru generarea linkului de resetare
+- afiseaza mesajele de succes sau eroare pentru utilizator
+*/
+
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -11,6 +23,7 @@ import { primaryButtonClass } from '../../utils/buttonClasses'
 import { getApiErrorMessages } from '../../utils/errorMessages'
 import { validateEmail } from '../../utils/validators'
 
+// afisam formularul pentru trimiterea emailului de resetare
 export default function ForgotPasswordPage() {
   usePageTitle('Resetare parolă')
 

@@ -1,3 +1,16 @@
+"""
+ExamSense+ - Users Serializers
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste serializer-ele pentru autentificare si gestionarea contului
+- valideaza inregistrarea unui utilizator nou
+- serializeaza datele utilizatorului pentru frontend
+- valideaza actualizarea profilului, schimbarea parolei si resetarea parolei
+- centralizeaza regulile de validare pentru datele introduse de utilizator
+"""
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 
@@ -7,7 +20,7 @@ from rest_framework import serializers
 User = get_user_model()
 
 
-# validam datele necesare pentru inregistrarea unui cont nou
+# valideaza datele necesare pentru inregistrarea unui cont nou
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
     password_confirm = serializers.CharField(write_only=True, min_length=8)
@@ -31,7 +44,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Emailul este obligatoriu.")
 
         if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("Există deja un utilizator cu acest email.")
+            raise serializers.ValidationError("Exista deja un utilizator cu acest email.")
 
         return value.strip()
 
@@ -40,7 +53,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Username-ul este obligatoriu.")
 
         if User.objects.filter(username=value).exists():
-            raise serializers.ValidationError("Există deja un utilizator cu acest username.")
+            raise serializers.ValidationError("Exista deja un utilizator cu acest username.")
 
         return value.strip()
 
@@ -54,7 +67,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Numele este obligatoriu.")
         return value.strip()
 
-    # verificam daca parolele coincid si daca parola respecta regulile Django
+    # verifica daca parolele coincid si daca parola respecta regulile Django
     def validate(self, attrs):
         if attrs["password"] != attrs["password_confirm"]:
             raise serializers.ValidationError({
@@ -64,7 +77,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         validate_password(attrs["password"])
         return attrs
 
-    # cream utilizatorul dupa ce toate datele au fost validate
+    # creeaza utilizatorul dupa ce toate datele au fost validate
     def create(self, validated_data):
         validated_data.pop("password_confirm")
 
@@ -78,7 +91,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         return user
 
 
-# serializam datele utilizatorului pentru frontend
+# serializeaza datele utilizatorului pentru frontend
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
@@ -100,7 +113,7 @@ class UserSerializer(serializers.ModelSerializer):
         ]
 
 
-# validam modificarile aduse profilului utilizatorului
+# valideaza modificarile aduse profilului utilizatorului
 class UpdateProfileSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(required=True, allow_blank=False)
     last_name = serializers.CharField(required=True, allow_blank=False)
@@ -121,7 +134,7 @@ class UpdateProfileSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Emailul este obligatoriu.")
 
         if User.objects.filter(email=value).exclude(id=user.id).exists():
-            raise serializers.ValidationError("Există deja un utilizator cu acest email.")
+            raise serializers.ValidationError("Exista deja un utilizator cu acest email.")
 
         return value.strip()
 
@@ -132,7 +145,7 @@ class UpdateProfileSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Username-ul este obligatoriu.")
 
         if User.objects.filter(username=value).exclude(id=user.id).exists():
-            raise serializers.ValidationError("Există deja un utilizator cu acest username.")
+            raise serializers.ValidationError("Exista deja un utilizator cu acest username.")
 
         return value.strip()
 
@@ -147,7 +160,7 @@ class UpdateProfileSerializer(serializers.ModelSerializer):
         return value.strip()
 
 
-# validam schimbarea parolei pentru un utilizator deja autentificat
+# valideaza schimbarea parolei pentru un utilizator autentificat
 class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(write_only=True)
     new_password = serializers.CharField(write_only=True, min_length=8)
@@ -163,7 +176,7 @@ class ChangePasswordSerializer(serializers.Serializer):
         return attrs
 
 
-# validam emailul folosit pentru trimiterea linkului de resetare
+# valideaza emailul folosit pentru cererea de resetare a parolei
 class ForgotPasswordRequestSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
@@ -173,7 +186,7 @@ class ForgotPasswordRequestSerializer(serializers.Serializer):
         return value.strip()
 
 
-# validam resetarea parolei pe baza tokenului primit pe email
+# valideaza resetarea parolei pe baza uid-ului si tokenului primit
 class ResetPasswordSerializer(serializers.Serializer):
     uid = serializers.CharField()
     token = serializers.CharField()

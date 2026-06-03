@@ -1,3 +1,15 @@
+/*
+ExamSense+ - API Error Formatting Helpers
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste functii helper pentru afisarea erorilor API in frontend
+- transforma campurile tehnice in etichete mai prietenoase pentru utilizator
+- normalizeaza mesajele brute primite din backend
+- construieste mesaje de eroare clare si reutilizabile pentru interfata
+*/
+
 // transformam numele tehnic al campului intr-un text mai prietenos pentru UI
 function humanizeFieldName(field) {
   const fieldMap = {

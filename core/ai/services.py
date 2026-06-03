@@ -1,3 +1,16 @@
+"""
+ExamSense+ - AI Services
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- implementeaza integrarea cu serviciile OpenAI pentru generarea si rezolvarea quiz-urilor
+- curata si parseaza raspunsurile brute venite de la model
+- normalizeaza definitiile si intrebarile generate de AI
+- elimina duplicatele si filtreaza continutul invalid
+- ruleaza solverul AI pentru comparatia dintre utilizator si AI
+"""
+
 import json
 import random
 import re
@@ -14,12 +27,14 @@ from .prompts import (
 client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
 
+# extrage partea JSON din raspunsul text primit de la model
 def _extract_json_text(raw_text):
     if not raw_text:
         raise ValueError("Empty response from AI service.")
 
     cleaned = str(raw_text).strip()
 
+    # eliminam eventualele blocuri markdown daca modelul le-a returnat
     if cleaned.startswith("```"):
         cleaned = re.sub(r"^```json\s*", "", cleaned, flags=re.IGNORECASE)
         cleaned = re.sub(r"^```\s*", "", cleaned)
@@ -44,10 +59,12 @@ def _extract_json_text(raw_text):
     if not candidates:
         raise ValueError("Could not find JSON content in AI response.")
 
+    # alegem cea mai lunga bucata identificata ca sa crestem sansele de parse corect
     candidates.sort(key=len, reverse=True)
     return candidates[0]
 
 
+# parseaza in siguranta JSON-ul returnat de model
 def _safe_json_loads(raw_text):
     json_text = _extract_json_text(raw_text)
 
@@ -60,6 +77,7 @@ def _safe_json_loads(raw_text):
         raise ValueError("AI returned invalid JSON.")
 
 
+# reduce codurile de limba la formele folosite in aplicatie
 def _normalize_language(value):
     value = str(value or "").strip().lower()
 
@@ -69,6 +87,7 @@ def _normalize_language(value):
     return "en"
 
 
+# valideaza si normalizeaza o definitie primita de la AI
 def _normalize_definition_item(item):
     concept = str(item.get("concept", "")).strip()
     definition = str(item.get("definition", "")).strip()
@@ -88,6 +107,7 @@ def _normalize_definition_item(item):
     }
 
 
+# limiteaza tipul intrebarii la tipurile permise in aplicatie
 def _normalize_question_type(question_type):
     value = str(question_type or "").strip().lower()
 
@@ -97,6 +117,7 @@ def _normalize_question_type(question_type):
     return "mcq"
 
 
+# valideaza si normalizeaza o intrebare generata de AI
 def _normalize_question_item(item):
     question_type = _normalize_question_type(item.get("type"))
     language = _normalize_language(item.get("language", "en"))
@@ -107,6 +128,7 @@ def _normalize_question_item(item):
     if not question_text:
         return None
 
+    # tratam separat intrebarile de tip true/false
     if question_type == "true_false":
         if isinstance(correct_answer, str):
             lowered = correct_answer.strip().lower()
@@ -137,6 +159,7 @@ def _normalize_question_item(item):
             if option_text:
                 normalized_options.append(option_text)
 
+    # eliminam duplicatele din optiuni, pastrand ordinea
     seen = set()
     deduped_options = []
 
@@ -147,7 +170,6 @@ def _normalize_question_item(item):
             deduped_options.append(option)
 
     normalized_options = deduped_options
-
     correct_answer = str(correct_answer or "").strip()
 
     if not correct_answer:
@@ -155,12 +177,14 @@ def _normalize_question_item(item):
 
     options_lower = [option.lower() for option in normalized_options]
 
+    # ne asiguram ca raspunsul corect exista in lista de optiuni
     if correct_answer.lower() not in options_lower:
         normalized_options.append(correct_answer)
 
     if len(normalized_options) < 2:
         return None
 
+    # limitam lista la maximum 4 optiuni
     if len(normalized_options) > 4:
         correct_found = None
 
@@ -181,6 +205,7 @@ def _normalize_question_item(item):
         else:
             normalized_options = normalized_options[:4]
 
+    # folosim forma exacta a raspunsului corect din optiuni
     for option in normalized_options:
         if option.lower() == correct_answer.lower():
             correct_answer = option
@@ -197,6 +222,7 @@ def _normalize_question_item(item):
     }
 
 
+# elimina definitiile duplicate pastrand doar intrarile unice
 def _dedupe_definitions(definitions):
     unique_definitions = []
     seen_definitions = set()
@@ -215,6 +241,7 @@ def _dedupe_definitions(definitions):
     return unique_definitions
 
 
+# elimina intrebarile duplicate pe baza tipului, limbii si textului
 def _dedupe_questions(questions):
     unique_questions = []
     seen_questions = set()
@@ -233,6 +260,7 @@ def _dedupe_questions(questions):
     return unique_questions
 
 
+# face o cerere unica catre model pentru a obtine definitii si intrebari
 def _request_quiz_bundle_once(trimmed_text, difficulty, requested_questions):
     prompt = build_quiz_generation_prompt(
         text=trimmed_text,
@@ -292,6 +320,7 @@ def _request_quiz_bundle_once(trimmed_text, difficulty, requested_questions):
     }
 
 
+# genereaza definitii si intrebari cu AI, cu o a doua incercare daca nu ies suficiente
 def generate_quiz_bundle_with_ai(text, difficulty="medium", max_questions=10):
     if not text or not str(text).strip():
         raise ValueError("Document text is empty.")
@@ -302,7 +331,7 @@ def generate_quiz_bundle_with_ai(text, difficulty="medium", max_questions=10):
     if len(trimmed_text) > max_chars:
         trimmed_text = trimmed_text[:max_chars]
 
-    # cerem mai multe intrebari decat are nevoie userul
+    # cerem initial mai multe intrebari decat numarul final dorit
     first_request_count = max_questions + max(5, max_questions // 3)
 
     try:
@@ -318,8 +347,7 @@ def generate_quiz_bundle_with_ai(text, difficulty="medium", max_questions=10):
     all_definitions = list(first_pass["definitions"])
     all_questions = list(first_pass["questions"])
 
-    # daca dupa filtrare si deduplicare tot nu avem suficiente,
-    # mai facem inca o incercare suplimentara
+    # daca nu avem suficiente intrebari valide, mai facem o incercare
     if len(all_questions) < max_questions:
         missing_count = max_questions - len(all_questions)
         second_request_count = missing_count + 5
@@ -351,6 +379,7 @@ def generate_quiz_bundle_with_ai(text, difficulty="medium", max_questions=10):
     }
 
 
+# trimite intrebarile catre solverul AI si normalizeaza raspunsurile primite
 def solve_quiz_with_ai(question_objects):
     questions_payload = []
 

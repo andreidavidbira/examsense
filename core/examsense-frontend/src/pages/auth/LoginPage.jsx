@@ -1,3 +1,15 @@
+/*
+ExamSense+ - Login Page
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste pagina de autentificare a utilizatorului
+- valideaza local datele minime necesare pentru login
+- apeleaza flow-ul de autentificare prin contextul aplicatiei
+- ofera acces rapid catre resetarea parolei si crearea unui cont nou
+*/
+
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
@@ -9,6 +21,7 @@ import { useToast } from '../../hooks/useToast'
 import usePageTitle from '../../hooks/usePageTitle'
 import { getApiErrorMessages } from '../../utils/errorMessages'
 
+// mesaje scurte afisate in partea introductiva a paginii
 const leftHighlights = [
   'Autentificare rapidă și sigură',
   'Acces la quiz-uri generate automat',
@@ -16,6 +29,7 @@ const leftHighlights = [
   'Istoric, scoruri și progres centralizat',
 ]
 
+// afisam formularul de autentificare pentru utilizator
 export default function LoginPage() {
   usePageTitle('Autentificare')
 
@@ -29,6 +43,7 @@ export default function LoginPage() {
   const [errors, setErrors] = useState([])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // validam local username-ul introdus
   const usernameError = useMemo(() => {
     if (!username.trim()) {
       return 'Username-ul este obligatoriu.'
@@ -36,6 +51,7 @@ export default function LoginPage() {
     return ''
   }, [username])
 
+  // validam local parola introdusa
   const passwordError = useMemo(() => {
     if (!password.trim()) {
       return 'Parola este obligatorie.'
@@ -43,6 +59,7 @@ export default function LoginPage() {
     return ''
   }, [password])
 
+  // marcam un camp ca fiind atins pentru afisarea erorilor
   function handleBlur(fieldName) {
     setTouched((prev) => ({
       ...prev,
@@ -50,6 +67,7 @@ export default function LoginPage() {
     }))
   }
 
+  // trimitem datele de login si redirectionam utilizatorul dupa succes
   async function handleSubmit(e) {
     e.preventDefault()
     setErrors([])

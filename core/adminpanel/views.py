@@ -1,3 +1,16 @@
+"""
+ExamSense+ - Admin Panel Views
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- implementeaza endpoint-urile API pentru panoul de administrare
+- calculeaza statistici globale pentru utilizatori, documente, quiz-uri si raspunsuri
+- construieste dashboardul detaliat pentru fiecare utilizator
+- expune comparatii intre utilizatori si solverul AI
+- permite actiuni administrative precum activarea/dezactivarea utilizatorilor si stergerea documentelor
+"""
+
 from django.contrib.auth import get_user_model
 from django.db.models import Avg, Count, Max, Min
 
@@ -30,7 +43,7 @@ from .serializers import (
 User = get_user_model()
 
 
-# calculeaza numarul documentului raportat doar la utilizatorul curent
+# calculeaza numarul documentului raportat doar la istoricul utilizatorului curent
 def get_user_document_number(user_id, document_id):
     return (
         Document.objects
@@ -39,7 +52,7 @@ def get_user_document_number(user_id, document_id):
     )
 
 
-# calculeaza numarul attemptului raportat doar la utilizatorul curent
+# calculeaza numarul attemptului raportat doar la istoricul utilizatorului curent
 def get_user_attempt_number(user_id, attempt_id):
     return (
         QuizAttempt.objects
@@ -48,7 +61,7 @@ def get_user_attempt_number(user_id, attempt_id):
     )
 
 
-# intoarce statisticile de baza pentru un queryset de attempturi ale utilizatorilor
+# construieste statisticile de baza pentru un set de attempturi ale utilizatorilor
 def build_attempt_stats(attempts_qs):
     average_score = attempts_qs.aggregate(avg=Avg("score"))["avg"] or 0
     best_score = attempts_qs.aggregate(best=Max("score"))["best"] or 0
@@ -68,7 +81,7 @@ def build_attempt_stats(attempts_qs):
     }
 
 
-# intoarce statisticile AI pentru un queryset de attempturi AI
+# construieste statisticile pentru solverul AI pe baza attempturilor AI
 def build_ai_attempt_stats(ai_attempts_qs):
     average_score = ai_attempts_qs.aggregate(avg=Avg("score"))["avg"] or 0
     best_score = ai_attempts_qs.aggregate(best=Max("score"))["best"] or 0
@@ -88,7 +101,7 @@ def build_ai_attempt_stats(ai_attempts_qs):
     }
 
 
-# construieste comparatia user vs ai pentru un queryset de attempturi
+# compara performanta utilizatorilor cu performanta solverului AI
 def build_user_vs_ai_stats(attempts_qs):
     ai_attempts_qs = AIQuizAttempt.objects.filter(quiz_attempt__in=attempts_qs)
 
@@ -117,7 +130,7 @@ def build_user_vs_ai_stats(attempts_qs):
     }
 
 
-# intoarce top concepte gresite pentru un utilizator
+# intoarce conceptele la care un utilizator a gresit cel mai des
 def build_most_wrong_concepts_for_user(user, limit=10):
     wrong_answers = (
         QuizAnswer.objects
@@ -146,7 +159,7 @@ def build_most_wrong_concepts_for_user(user, limit=10):
     return results
 
 
-# construieste dashboardul complet pentru un user
+# construieste toate datele necesare pentru dashboardul complet al unui utilizator
 def build_user_dashboard_data(user):
     all_attempts = QuizAttempt.objects.filter(user=user).select_related(
         "document",
@@ -211,7 +224,7 @@ def build_user_dashboard_data(user):
 class AdminOverviewView(APIView):
     permission_classes = [IsAdminPanelUser]
 
-    # intoarcem statisticile globale pentru dashboardul de admin
+    # intoarce statisticile globale pentru dashboardul principal de admin
     def get(self, request):
         total_users = User.objects.count()
         active_users = User.objects.filter(is_active=True).count()
@@ -261,7 +274,7 @@ class AdminOverviewView(APIView):
 class AdminAiOverviewView(APIView):
     permission_classes = [IsAdminPanelUser]
 
-    # intoarcem statisticile globale pentru solverul AI
+    # intoarce statisticile globale pentru solverul AI
     def get(self, request):
         ai_attempts = AIQuizAttempt.objects.select_related("quiz_attempt", "quiz_attempt__question_set")
 
@@ -286,7 +299,7 @@ class AdminAiOverviewView(APIView):
 class AdminUsersListView(APIView):
     permission_classes = [IsAdminPanelUser]
 
-    # construim lista utilizatorilor pentru admin
+    # construieste lista utilizatorilor pentru panoul de administrare
     def get(self, request):
         users = User.objects.all().order_by("-date_joined")
         results = []
@@ -329,13 +342,13 @@ class AdminUsersListView(APIView):
 class AdminUserDetailView(APIView):
     permission_classes = [IsAdminPanelUser]
 
-    # intoarcem dashboardul complet pentru un utilizator anume
+    # intoarce dashboardul complet pentru un utilizator selectat
     def get(self, request, user_id):
         try:
             user = User.objects.get(id=user_id)
         except User.DoesNotExist:
             return Response(
-                {"error": "Utilizatorul nu a fost găsit."},
+                {"error": "Utilizatorul nu a fost gasit."},
                 status=404,
             )
 
@@ -347,7 +360,7 @@ class AdminUserDetailView(APIView):
 class AdminDocumentsListView(APIView):
     permission_classes = [IsAdminPanelUser]
 
-    # construim lista documentelor din platforma
+    # intoarce lista documentelor existente in platforma
     def get(self, request):
         documents = (
             Document.objects
@@ -390,7 +403,7 @@ class AdminDocumentsListView(APIView):
 class AdminQuestionSetsListView(APIView):
     permission_classes = [IsAdminPanelUser]
 
-    # returnam toate seturile de quiz generate
+    # intoarce toate seturile de intrebari generate in platforma
     def get(self, request):
         question_sets = (
             QuestionSet.objects
@@ -423,7 +436,7 @@ class AdminQuestionSetsListView(APIView):
 class AdminAttemptsListView(APIView):
     permission_classes = [IsAdminPanelUser]
 
-    # construim istoricul global al attempturilor utilizatorilor
+    # intoarce istoricul global al attempturilor utilizatorilor
     def get(self, request):
         attempts = (
             QuizAttempt.objects
@@ -465,19 +478,19 @@ class AdminAttemptsListView(APIView):
 class AdminToggleUserActiveView(APIView):
     permission_classes = [IsAdminPanelUser]
 
-    # schimbam starea activa sau inactiva a unui utilizator
+    # schimba starea activa sau inactiva a unui utilizator
     def patch(self, request, user_id):
         try:
             user = User.objects.get(id=user_id)
         except User.DoesNotExist:
             return Response(
-                {"error": "Utilizatorul nu a fost găsit."},
+                {"error": "Utilizatorul nu a fost gasit."},
                 status=404,
             )
 
         if user.id == request.user.id:
             return Response(
-                {"error": "Nu îți poți dezactiva propriul cont din panoul de admin."},
+                {"error": "Nu iti poti dezactiva propriul cont din panoul de admin."},
                 status=400,
             )
 
@@ -490,7 +503,7 @@ class AdminToggleUserActiveView(APIView):
         user.save()
 
         return Response({
-            "message": "Starea utilizatorului a fost actualizată.",
+            "message": "Starea utilizatorului a fost actualizata.",
             "is_active": user.is_active,
         })
 
@@ -498,18 +511,18 @@ class AdminToggleUserActiveView(APIView):
 class AdminDeleteDocumentView(APIView):
     permission_classes = [IsAdminPanelUser]
 
-    # permitem stergerea unui document direct din panoul de admin
+    # permite stergerea unui document direct din panoul de administrare
     def delete(self, request, document_id):
         try:
             document = Document.objects.get(id=document_id)
         except Document.DoesNotExist:
             return Response(
-                {"error": "Documentul nu a fost găsit."},
+                {"error": "Documentul nu a fost gasit."},
                 status=404,
             )
 
         document.delete()
 
         return Response({
-            "message": "Documentul a fost șters cu succes.",
+            "message": "Documentul a fost sters cu succes.",
         })

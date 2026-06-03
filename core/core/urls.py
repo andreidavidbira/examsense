@@ -1,3 +1,15 @@
+"""
+ExamSense+ - Project URL Configuration
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste rutele principale ale proiectului Django
+- conecteaza modulele auth, documents, learning si adminpanel
+- expune interfata Django Admin
+- permite servirea fisierelor media in modul de dezvoltare
+"""
+
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
@@ -15,6 +27,6 @@ urlpatterns = [
 ]
 
 
-# in modul de dezvoltare permitem accesul la fisierele media
+# in modul de dezvoltare permitem accesul direct la fisierele media
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

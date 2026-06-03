@@ -1,3 +1,15 @@
+/*
+ExamSense+ - Time Formatting Helpers
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste functii helper pentru formatarea duratelor afisate in frontend
+- transforma valorile exprimate in secunde intr-un format usor de citit
+- este folosit pentru afisarea timpului petrecut de utilizator sau de AI
+*/
+
+// formateaza o durata exprimata in secunde intr-o varianta mai usor de citit
 export function formatDuration(seconds) {
   const safeSeconds = Math.max(0, Number(seconds || 0))
 

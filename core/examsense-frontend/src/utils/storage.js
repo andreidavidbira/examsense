@@ -1,3 +1,14 @@
+/*
+ExamSense+ - Local Auth Storage Helpers
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- centralizeaza operatiile de baza pentru tokenurile salvate local
+- gestioneaza citirea, salvarea si stergerea tokenurilor din localStorage
+- ofera o interfata simpla si reutilizabila pentru logica de autentificare din frontend
+*/
+
 const ACCESS_TOKEN_KEY = 'access_token'
 const REFRESH_TOKEN_KEY = 'refresh_token'
 

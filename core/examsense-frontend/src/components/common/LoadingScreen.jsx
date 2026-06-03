@@ -1,5 +1,17 @@
+/*
+ExamSense+ - Loading Screen Component
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste ecranul de loading afisat in faza initiala de incarcare a aplicatiei
+- ofera un feedback vizual elegant in timpul initializarii
+- foloseste animatie pentru o experienta mai fluida la pornirea interfetei
+*/
+
 import { motion } from 'framer-motion'
 
+// afisam ecranul de incarcare al aplicatiei inainte ca datele esentiale sa fie gata
 export default function LoadingScreen() {
   return (
     <div className="flex min-h-screen items-center justify-center px-6">

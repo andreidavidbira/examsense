@@ -1,3 +1,15 @@
+/*
+ExamSense+ - Empty State Component
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste componenta reutilizabila pentru afisarea starilor fara continut
+- afiseaza un titlu si o descriere atunci cand nu exista date disponibile
+- permite randarea optionala a unei actiuni suplimentare
+- mentine consistenta vizuala a ecranelor goale din aplicatie
+*/
+
 export default function EmptyState({
   title = 'Nu există date',
   description = 'Momentan nu există informații de afișat.',

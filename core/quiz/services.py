@@ -1,10 +1,25 @@
+"""
+ExamSense+ - Quiz Generation Services
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- genereaza intrebari de quiz pe baza definitiilor extrase
+- construieste intrebari in romana si engleza
+- alege tipul potrivit de intrebare in functie de dificultate si continut
+- produce variante mai naturale de formulare pentru fiecare concept
+- selecteaza distractori si construieste optiuni valide pentru quiz
+"""
+
 import random
 
 
+# normalizeaza conceptul inainte de a fi folosit intr-o intrebare
 def normalize_concept_for_question(concept):
     return concept.lower().strip()
 
 
+# verifica daca o definitie este suficient de buna pentru a genera o intrebare
 def is_good_quiz_item(item):
     concept = item.get("concept", "").strip().lower()
     definition = item.get("definition", "").strip()
@@ -30,6 +45,7 @@ def is_good_quiz_item(item):
     return True
 
 
+# aproximam daca un concept in romana are forma feminina
 def is_probably_feminine_ro(concept):
     feminine_endings = (
         "are",
@@ -76,12 +92,14 @@ def is_probably_feminine_ro(concept):
     return concept.endswith(feminine_endings)
 
 
+# construieste forma corecta pentru intrebarea "cum poate fi definit(a)"
 def ro_defined_phrase(concept):
     if is_probably_feminine_ro(concept):
         return f"Cum poate fi definită {concept}?"
     return f"Cum poate fi definit {concept}?"
 
 
+# detecteaza intentia principala a unei definitii
 def detect_intent(item):
     definition = item.get("definition", "").lower()
     pattern = item.get("pattern", "").lower()
@@ -232,6 +250,7 @@ def detect_intent(item):
     return "definition"
 
 
+# genereaza mai multe variante de intrebare pentru acelasi concept
 def generate_question_variants(concept, intent, lang, item=None):
     current_concept = concept
     pattern = ""
@@ -322,6 +341,7 @@ def generate_question_variants(concept, intent, lang, item=None):
     return strategies.get(intent, [f"What is {current_concept}?"])
 
 
+# calculeaza un scor simplu pentru a alege formularea cea mai naturala
 def score_question(question):
     score = 0
     question_lower = question.lower()
@@ -341,6 +361,7 @@ def score_question(question):
     return score
 
 
+# alege una dintre cele mai bune variante de intrebare
 def select_human_like_question(variants):
     scored = [(question, score_question(question)) for question in variants]
     scored = sorted(scored, key=lambda item: item[1], reverse=True)
@@ -348,6 +369,7 @@ def select_human_like_question(variants):
     return random.choice(top)
 
 
+# alege distractori pentru variantele gresite din intrebari
 def choose_distractors(correct_def, items, max_count=3):
     candidates = []
 
@@ -368,16 +390,15 @@ def choose_distractors(correct_def, items, max_count=3):
     return random.sample(candidates, max_count)
 
 
+# genereaza intrebarile pentru o singura limba
 def generate_questions_for_language(items, language, difficulty="medium", max_questions=10):
     questions = []
-
     valid_items = [item for item in items if is_good_quiz_item(item)]
 
     if len(valid_items) < 2:
         return []
 
     random.shuffle(valid_items)
-
     used_questions = set()
 
     for item in valid_items:
@@ -397,7 +418,6 @@ def generate_questions_for_language(items, language, difficulty="medium", max_qu
             continue
 
         used_questions.add(question_text)
-
         distractors = choose_distractors(correct_def, valid_items, max_count=3)
         can_make_mcq = len(distractors) >= 3
 
@@ -496,6 +516,7 @@ def generate_questions_for_language(items, language, difficulty="medium", max_qu
     return questions
 
 
+# genereaza intrebarile finale, impartite intre romana si engleza
 def generate_questions(definitions, difficulty="medium", max_questions=10):
     definitions_ro = [item for item in definitions if item.get("language") == "ro"]
     definitions_en = [item for item in definitions if item.get("language") == "en"]

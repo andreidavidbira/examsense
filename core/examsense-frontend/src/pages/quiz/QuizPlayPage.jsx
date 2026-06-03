@@ -1,3 +1,15 @@
+/*
+ExamSense+ - Quiz Play Page
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste pagina in care utilizatorul rezolva efectiv quiz-ul
+- incarca intrebarile pentru setul selectat
+- gestioneaza raspunsurile, navigarea intre intrebari si timpul petrecut
+- trimite quiz-ul catre backend si redirectioneaza catre pagina de rezultat
+*/
+
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
@@ -13,12 +25,14 @@ import {
 } from '../../utils/buttonClasses'
 import { formatDuration } from '../../utils/timeFormat'
 
+// transformam lista de raspunsuri intr-un map pentru acces rapid dupa question_id
 function modeBadgeClass(mode) {
   return mode === 'ai'
     ? 'rounded-full bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700'
     : 'rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700'
 }
 
+// afisam pagina in care utilizatorul rezolva quiz-ul intrebare cu intrebare
 export default function QuizPlayPage() {
   usePageTitle('Quiz')
 
@@ -59,6 +73,7 @@ export default function QuizPlayPage() {
   useEffect(() => {
     if (!startedAt) return
 
+    // actualizam timpul scurs din momentul inceperii quiz-ului
     const timer = setInterval(() => {
       setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000))
     }, 1000)
@@ -315,6 +330,7 @@ export default function QuizPlayPage() {
         </SectionCard>
       </div>
 
+      {/* bara fixa de navigare pentru ecranele mici */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 p-3 backdrop-blur sm:hidden">
         <div className="mx-auto flex max-w-3xl gap-3">
           <button

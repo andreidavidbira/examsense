@@ -1,6 +1,19 @@
+"""
+ExamSense+ - Learning Serializers
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste serializer-ele pentru modulul de learning
+- structureaza conceptele slabe si recomandarile de invatare
+- serializeaza statisticile din dashboardul de progres
+- defineste formatul quiz-ului de recapitulare si al intrebarilor trimise catre frontend
+"""
+
 from rest_framework import serializers
 
 
+# serializer pentru un concept la care utilizatorul a gresit frecvent
 class WeakConceptSerializer(serializers.Serializer):
     concept = serializers.CharField()
     definition = serializers.CharField(allow_blank=True, required=False)
@@ -10,6 +23,7 @@ class WeakConceptSerializer(serializers.Serializer):
     user_document_number = serializers.IntegerField(allow_null=True, required=False)
 
 
+# serializer pentru o recomandare de invatare asociata unui concept slab
 class RecommendationSerializer(serializers.Serializer):
     concept = serializers.CharField()
     definition = serializers.CharField(allow_blank=True, required=False)
@@ -20,6 +34,7 @@ class RecommendationSerializer(serializers.Serializer):
     user_document_number = serializers.IntegerField(allow_null=True, required=False)
 
 
+# serializer pentru un attempt recent afisat in dashboardul de learning
 class RecentAttemptSerializer(serializers.Serializer):
     attempt_id = serializers.IntegerField()
     question_set_id = serializers.IntegerField()
@@ -34,6 +49,7 @@ class RecentAttemptSerializer(serializers.Serializer):
     completed_at = serializers.DateTimeField()
 
 
+# bloc de statistici pentru overall, nlp sau ai
 class ModeStatsSerializer(serializers.Serializer):
     total_attempts = serializers.IntegerField()
     average_score = serializers.FloatField()
@@ -48,6 +64,7 @@ class ModeStatsSerializer(serializers.Serializer):
     ties = serializers.IntegerField()
 
 
+# serializer complet pentru dashboardul de invatare
 class LearningDashboardSerializer(serializers.Serializer):
     overall = ModeStatsSerializer()
     nlp = ModeStatsSerializer()
@@ -56,6 +73,7 @@ class LearningDashboardSerializer(serializers.Serializer):
     recent_attempts = RecentAttemptSerializer(many=True)
 
 
+# serializer pentru o intrebare din quiz-ul de recapitulare
 class RetryQuizQuestionSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     question_set_id = serializers.IntegerField()
@@ -67,6 +85,7 @@ class RetryQuizQuestionSerializer(serializers.Serializer):
     correct_answer = serializers.CharField()
 
 
+# serializer pentru raspunsul complet al quiz-ului de recapitulare
 class RetryQuizResponseSerializer(serializers.Serializer):
     count = serializers.IntegerField()
     questions = RetryQuizQuestionSerializer(many=True)

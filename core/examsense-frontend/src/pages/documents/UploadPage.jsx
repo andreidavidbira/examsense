@@ -1,3 +1,15 @@
+/*
+ExamSense+ - Upload Document Page
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste pagina pentru incarcarea documentelor in platforma
+- valideaza fisierul si optiunile alese de utilizator
+- explica vizual diferentele dintre modurile NLP si AI
+- trimite documentul catre backend pentru procesare si redirectioneaza utilizatorul dupa succes
+*/
+
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -13,7 +25,7 @@ import {
   validateUploadFile,
 } from '../../utils/validators'
 
-
+// mesaje scurte afisate in partea introductiva a paginii
 const uploadHighlights = [
   'Încarci PDF sau DOCX',
   'Alegi generare cu NLP sau AI',
@@ -21,6 +33,7 @@ const uploadHighlights = [
   'Poți compara performanța ta cu AI',
 ]
 
+// afisam formularul de upload si gestionam trimiterea documentului spre backend
 export default function UploadPage() {
   usePageTitle('Încarcă document')
 
@@ -35,6 +48,7 @@ export default function UploadPage() {
   const [errors, setErrors] = useState([])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // validam local campurile importante pentru feedback imediat in UI
   const liveErrors = useMemo(() => {
     return {
       file: validateUploadFile(file),
@@ -44,6 +58,7 @@ export default function UploadPage() {
 
   const hasLiveErrors = Object.values(liveErrors).some(Boolean)
 
+  // marcam un camp ca fiind atins pentru a afisa erorile doar dupa interactiune
   function handleBlur(fieldName) {
     setTouched((prev) => ({
       ...prev,
@@ -51,6 +66,7 @@ export default function UploadPage() {
     }))
   }
 
+  // trimitem documentul catre backend impreuna cu optiunile selectate
   async function handleSubmit(e) {
     e.preventDefault()
 
@@ -222,6 +238,7 @@ export default function UploadPage() {
               </div>
             </div>
 
+            {/* afisam o explicatie scurta pentru metoda selectata */}
             <div
               className={`rounded-3xl border px-4 py-4 text-sm ${
                 generationMode === 'nlp'

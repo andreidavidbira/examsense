@@ -1,3 +1,15 @@
+/*
+ExamSense+ - API Client Configuration
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- configureaza instanta globala axios folosita in frontend
+- gestioneaza automat trimiterea tokenului CSRF
+- incearca refacerea sesiunii prin refresh token atunci cand access token-ul expira
+- centralizeaza comunicarea sigura dintre frontend si backend
+*/
+
 import axios from 'axios'
 
 // luam valoarea unui cookie dupa nume
@@ -12,7 +24,7 @@ function getCookie(name) {
   return null
 }
 
-// aici configuram instanta axios folosita in tot frontendul
+// configuram instanta axios folosita in tot frontendul
 const api = axios.create({
   baseURL: 'http://localhost:8000/api',
   timeout: 60000,
@@ -75,6 +87,7 @@ api.interceptors.response.use(
       try {
         await ensureCsrfCookie()
 
+        // evitam trimiterea mai multor refresh-uri simultan
         if (!refreshPromise) {
           refreshPromise = api.post('/auth/refresh/')
         }

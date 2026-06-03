@@ -1,3 +1,15 @@
+/*
+ExamSense+ - Recommendations Page
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste pagina cu recomandarile de invatare pentru utilizator
+- afiseaza conceptele la care utilizatorul a gresit frecvent
+- evidentiaza nivelul de prioritate pentru fiecare concept
+- prezinta definitia si recomandarea asociata fiecarui punct slab
+*/
+
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -9,6 +21,7 @@ import SectionCard from '../../components/common/SectionCard'
 import { primaryButtonClass, secondaryButtonClass } from '../../utils/buttonClasses'
 import usePageTitle from '../../hooks/usePageTitle'
 
+// alegem stilul vizual in functie de numarul de greseli pentru un concept
 function getPriorityStyle(wrongCount) {
   if (wrongCount >= 5) {
     return {
@@ -33,6 +46,7 @@ function getPriorityStyle(wrongCount) {
   }
 }
 
+// afisam recomandarile de invatare generate pe baza greselilor recurente
 export default function RecommendationsPage() {
   usePageTitle('Recomandări de învățare')
 
@@ -40,6 +54,7 @@ export default function RecommendationsPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
+    // incarcam recomandarile construite in backend pentru utilizatorul curent
     async function fetchRecommendations() {
       try {
         const response = await api.get('/learning/recommendations/')

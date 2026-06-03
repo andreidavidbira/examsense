@@ -1,3 +1,15 @@
+/*
+ExamSense+ - Quiz Attempt Detail Page
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste pagina de detalii pentru o incercare de quiz finalizata
+- incarca si afiseaza metadatele attempt-ului selectat
+- permite reluarea aceluiasi quiz sau generarea unui quiz nou
+- compara raspunsurile utilizatorului, raspunsurile AI si variantele corecte
+*/
+
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
@@ -15,12 +27,14 @@ import {
 import { formatDuration } from '../../utils/timeFormat'
 import { formatDateTime } from '../../utils/dateFormat'
 
+// alegem stilul badge-ului in functie de metoda de generare a quiz-ului
 function modeBadgeClass(mode) {
   return mode === 'ai'
     ? 'rounded-full bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700'
     : 'rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700'
 }
 
+// afisam pagina cu detaliile complete ale unui attempt din istoric
 export default function QuizAttemptDetailPage() {
   usePageTitle('Detalii încercare quiz')
 
@@ -46,6 +60,7 @@ export default function QuizAttemptDetailPage() {
     fetchAttempt()
   }, [attemptId])
 
+  // construim un map pentru raspunsurile AI, astfel incat sa putem face comparatia rapid
   const aiAnswerMap = useMemo(() => {
     const map = {}
     const aiAnswers = data?.ai_attempt?.answers || []

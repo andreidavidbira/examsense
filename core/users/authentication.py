@@ -1,3 +1,15 @@
+"""
+ExamSense+ - Cookie JWT Authentication
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- implementeaza autentificarea JWT bazata pe cookie pentru aplicatie
+- permite citirea tokenului atat din header, cat si din cookie
+- aplica verificarea CSRF pentru cererile autentificate
+- contribuie la securizarea endpoint-urilor REST folosite de frontend
+"""
+
 from django.conf import settings
 
 from rest_framework.authentication import CSRFCheck
@@ -6,7 +18,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 
-# verificam manual tokenul csrf pentru cererile autentificate cu cookie
+# verifica manual tokenul CSRF pentru cererile autentificate prin cookie
 def enforce_csrf(request):
     def dummy_get_response(request):
         return None
@@ -20,7 +32,7 @@ def enforce_csrf(request):
 
 
 class CookieJWTAuthentication(JWTAuthentication):
-    # citim tokenul fie din header, fie din cookie si apoi verificam csrf-ul
+    # citeste tokenul din header sau din cookie si apoi verifica CSRF-ul
     def authenticate(self, request):
         header = self.get_header(request)
         raw_token = None

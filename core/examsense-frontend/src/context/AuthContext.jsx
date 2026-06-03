@@ -1,8 +1,21 @@
+/*
+ExamSense+ - Auth Context Provider
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste contextul global pentru autentificare
+- gestioneaza utilizatorul curent si starea sesiunii
+- expune actiunile principale de login, register, logout si refresh profil
+- initializeaza autentificarea la pornirea aplicatiei
+*/
+
 import { createContext, useEffect, useMemo, useState } from 'react'
 import api, { ensureCsrfCookie } from '../api/axios'
 
 export const AuthContext = createContext(null)
 
+// provider-ul gestioneaza starea de autentificare pentru intreaga aplicatie
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [isLoading, setIsLoading] = useState(true)

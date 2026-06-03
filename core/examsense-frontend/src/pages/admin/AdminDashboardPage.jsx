@@ -1,3 +1,15 @@
+/*
+ExamSense+ - Admin Dashboard Page
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste pagina principala a panoului de administrare
+- afiseaza statistici globale despre utilizatori, documente, question set-uri si attempt-uri
+- include grafice pentru raspunsuri, scoruri si comparatia dintre useri si AI
+- permite actiuni administrative precum activarea utilizatorilor si stergerea documentelor
+*/
+
 import { useEffect, useMemo, useState } from 'react'
 import {
   Bar,
@@ -36,10 +48,12 @@ const COMPARE_COLORS = ['#0f172a', '#8b5cf6']
 const MODE_COLORS = ['#10b981', '#8b5cf6']
 const USER_DUEL_COLORS = ['#0f172a', '#8b5cf6', '#f59e0b']
 
+// micsoram usor butoanele pentru zonele dense din admin
 function compactButtonClass(baseClass) {
   return `${baseClass} min-h-0 px-3 py-2 text-xs sm:text-sm`
 }
 
+// componenta simpla de paginare pentru listele din dashboard
 function SmallPagination({ page, totalPages, onChange }) {
   if (totalPages <= 1) return null
 
@@ -67,15 +81,18 @@ function SmallPagination({ page, totalPages, onChange }) {
   )
 }
 
+// extragem elementele pentru pagina curenta
 function paginate(items, page) {
   const start = (page - 1) * PAGE_SIZE
   return items.slice(start, start + PAGE_SIZE)
 }
 
+// calculam numarul total de pagini pentru o colectie
 function totalPages(items) {
   return Math.max(1, Math.ceil(items.length / PAGE_SIZE))
 }
 
+// afisam un grup de statistici pentru un mod anume
 function ModeStatsGrid({ title, stats }) {
   if (!stats) return null
 
@@ -93,6 +110,7 @@ function ModeStatsGrid({ title, stats }) {
   )
 }
 
+// wrapper reutilizabil pentru cardurile cu grafice
 function ChartCard({ title, subtitle, children }) {
   return (
     <SectionCard title={title} subtitle={subtitle} className="min-w-0">
@@ -105,6 +123,7 @@ function ChartCard({ title, subtitle, children }) {
   )
 }
 
+// afisam dashboard-ul principal pentru administrarea platformei
 export default function AdminDashboardPage() {
   usePageTitle('Panoul de administrare')
   const { showToast } = useToast()
@@ -128,6 +147,7 @@ export default function AdminDashboardPage() {
   const [questionSetsPage, setQuestionSetsPage] = useState(1)
   const [attemptsPage, setAttemptsPage] = useState(1)
 
+  // incarcam toate sursele principale de date pentru admin
   async function fetchAll() {
     try {
       setLoading(true)
@@ -162,6 +182,7 @@ export default function AdminDashboardPage() {
     }
   }
 
+  // incarcam dashboard-ul detaliat pentru un utilizator selectat
   async function fetchUserDetail(userId) {
     try {
       const response = await api.get(`/adminpanel/users/${userId}/`)
@@ -176,6 +197,7 @@ export default function AdminDashboardPage() {
     fetchAll()
   }, [])
 
+  // activam sau dezactivam utilizatorul selectat
   async function handleToggleUserActive() {
     if (!selectedUser) return
 
@@ -211,6 +233,7 @@ export default function AdminDashboardPage() {
     }
   }
 
+  // stergem documentul selectat
   async function handleDeleteDocument() {
     if (!selectedDocument) return
 
@@ -231,6 +254,7 @@ export default function AdminDashboardPage() {
   const pagedQuestionSets = useMemo(() => paginate(questionSets, questionSetsPage), [questionSets, questionSetsPage])
   const pagedAttempts = useMemo(() => paginate(attempts, attemptsPage), [attempts, attemptsPage])
 
+  // distributia globala a raspunsurilor corecte si gresite
   const globalAnswerDistributionData = useMemo(() => {
     if (!overview) return []
 
@@ -240,6 +264,7 @@ export default function AdminDashboardPage() {
     ]
   }, [overview])
 
+  // comparatia globala dintre useri si AI pe moduri
   const globalScoreCompareData = useMemo(() => {
     if (!overview || !aiOverview) return []
 
@@ -262,6 +287,7 @@ export default function AdminDashboardPage() {
     ]
   }, [overview, aiOverview])
 
+  // volumul incercarilor pentru NLP si AI
   const globalModeVolumeData = useMemo(() => {
     if (!overview) return []
 
@@ -271,6 +297,7 @@ export default function AdminDashboardPage() {
     ]
   }, [overview])
 
+  // distributia duelurilor pentru utilizatorul selectat
   const selectedUserDuelData = useMemo(() => {
     if (!selectedUserDetail?.user_vs_ai_overall) return []
 
@@ -290,6 +317,7 @@ export default function AdminDashboardPage() {
     ]
   }, [selectedUserDetail])
 
+  // comparatia dintre utilizator si AI pentru utilizatorul selectat
   const selectedUserModeCompareData = useMemo(() => {
     if (!selectedUserDetail) return []
 

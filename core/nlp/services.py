@@ -1,3 +1,16 @@
+"""
+ExamSense+ - NLP Pipeline Services
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- implementeaza fluxul principal de procesare NLP pentru documente
+- detecteaza limba textului si alege modelul spaCy potrivit
+- imparte textul in unitati si propozitii relevante
+- extrage definitiile finale folosind componentele de curatare si extractie
+- expune functii simple pentru procesarea textului si extragerea conceptelor
+"""
+
 import spacy
 from langdetect import detect
 
@@ -10,7 +23,7 @@ nlp_ro = spacy.load("ro_core_news_sm")
 nlp_en = spacy.load("en_core_web_sm")
 
 
-# detectam limba textului si o reducem la ro sau en
+# detecteaza limba textului si o reduce la ro sau en
 def detect_language(text):
     try:
         lang = detect(text)
@@ -19,7 +32,7 @@ def detect_language(text):
         return "en"
 
 
-# impartim textul in propozitii folosind modelul potrivit pentru limba detectata
+# imparte textul in propozitii folosind modelul corespunzator limbii detectate
 def split_sentences_block(text, lang):
     try:
         doc = nlp_ro(text) if lang == "ro" else nlp_en(text)
@@ -28,7 +41,7 @@ def split_sentences_block(text, lang):
         return [piece.strip() for piece in text.split(".") if piece.strip()]
 
 
-# construim unitati de text mai mari, astfel incat sa evitam headingurile foarte scurte
+# construieste unitati de text mai mari, pentru a evita liniile foarte scurte de tip heading
 def build_candidate_units(text):
     lines = [line.strip() for line in text.split("\n") if line.strip()]
 
@@ -56,7 +69,7 @@ def build_candidate_units(text):
     return units
 
 
-# curatam textul, il impartim in propozitii si extragem definitiile finale
+# curata textul, il imparte in propozitii si extrage definitiile finale
 def process_text(text):
     text = clean_text(text)
 
@@ -68,7 +81,6 @@ def process_text(text):
         }
 
     units = build_candidate_units(text)
-
     all_sentences = []
 
     for unit in units:
@@ -88,7 +100,7 @@ def process_text(text):
     }
 
 
-# extragem rapid doar lista de concepte/definitii rezultate din text
+# extrage rapid doar lista finala de concepte si definitii din text
 def extract_concepts(text):
     result = process_text(text)
     return result["definitions"]

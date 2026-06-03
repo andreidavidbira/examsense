@@ -1,3 +1,15 @@
+/*
+ExamSense+ - Change Password Page
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste pagina pentru schimbarea parolei utilizatorului
+- valideaza local campurile necesare pentru actualizarea parolei
+- trimite cererea catre backend si afiseaza rezultatul operatiei
+- poate deloga utilizatorul daca backend-ul cere reautentificare
+*/
+
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
@@ -17,6 +29,7 @@ import {
   validateStrongPassword,
 } from '../../utils/validators'
 
+// afisam formularul pentru schimbarea parolei contului curent
 export default function ChangePasswordPage() {
   usePageTitle('Schimbare parolă')
 
@@ -95,12 +108,14 @@ export default function ChangePasswordPage() {
       setMessage(response.data.message || 'Parola a fost schimbată cu succes.')
       showToast('Parola a fost schimbată.', 'success')
 
+      // golim formularul dupa succes
       setForm({
         old_password: '',
         new_password: '',
         new_password_confirm: '',
       })
 
+      // unele flow-uri cer reautentificare dupa schimbarea parolei
       if (response.data.logout_required) {
         await logout()
         navigate('/login')

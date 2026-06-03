@@ -1,7 +1,21 @@
+"""
+ExamSense+ - Documents Models
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste modelele principale pentru documente, definitii, intrebari si quiz-uri
+- salveaza documentele incarcate si textul extras din ele
+- pastreaza definitiile si intrebarile generate prin NLP sau AI
+- retine attempturile utilizatorilor si raspunsurile date
+- pastreaza si rezultatele solverului AI pentru comparatia User vs AI
+"""
+
 from django.conf import settings
 from django.db import models
 
 
+# modelul principal pentru un document incarcat de utilizator
 class Document(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -16,6 +30,7 @@ class Document(models.Model):
         return f"Document {self.id} - {self.file.name}"
 
 
+# defineste o notiune extrasa din document prin NLP sau AI
 class ExtractedDefinition(models.Model):
     GENERATION_MODES = [
         ("nlp", "NLP"),
@@ -43,6 +58,7 @@ class ExtractedDefinition(models.Model):
         return f"{self.concept} ({self.language}) - {self.generation_mode}"
 
 
+# grupeaza un set de intrebari generate pentru un document
 class QuestionSet(models.Model):
     GENERATION_MODES = [
         ("nlp", "NLP"),
@@ -66,6 +82,7 @@ class QuestionSet(models.Model):
         return f"QuestionSet {self.id} - Doc {self.document_id} - {self.generation_mode}"
 
 
+# salveaza fiecare intrebare generata pentru un document si un question set
 class GeneratedQuestion(models.Model):
     QUESTION_TYPES = [
         ("mcq", "Multiple Choice"),
@@ -113,6 +130,7 @@ class GeneratedQuestion(models.Model):
         return self.question_text[:80]
 
 
+# salveaza un quiz rezolvat de utilizator pentru un document si un question set
 class QuizAttempt(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -140,6 +158,7 @@ class QuizAttempt(models.Model):
         return f"Attempt {self.id} - {self.user} - QS {self.question_set_id}"
 
 
+# salveaza fiecare raspuns dat de utilizator la o intrebare
 class QuizAnswer(models.Model):
     attempt = models.ForeignKey(
         QuizAttempt,
@@ -158,6 +177,7 @@ class QuizAnswer(models.Model):
         return f"Answer {self.id} - Attempt {self.attempt.id}"
 
 
+# salveaza rezultatul solverului AI pentru acelasi quiz rezolvat de utilizator
 class AIQuizAttempt(models.Model):
     quiz_attempt = models.OneToOneField(
         QuizAttempt,
@@ -174,6 +194,7 @@ class AIQuizAttempt(models.Model):
         return f"AI Attempt {self.id} - QuizAttempt {self.quiz_attempt_id}"
 
 
+# salveaza fiecare raspuns dat de AI pentru intrebarile din quiz
 class AIQuizAnswer(models.Model):
     ai_attempt = models.ForeignKey(
         AIQuizAttempt,

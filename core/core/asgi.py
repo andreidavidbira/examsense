@@ -1,16 +1,21 @@
 """
-ASGI config for core project.
+ExamSense+ - ASGI Configuration
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
 
-It exposes the ASGI callable as a module-level variable named ``application``.
-
-For more information on this file, see
-https://docs.djangoproject.com/en/6.0/howto/deployment/asgi/
+Rolul fisierului:
+- initializeaza aplicatia Django in regim ASGI
+- seteaza modulul principal de configurare al proiectului
+- expune obiectul application folosit la rulare si deploy
 """
 
 import os
 
 from django.core.asgi import get_asgi_application
 
+
+# setam fisierul principal de configurare pentru proiectul Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 
+# expunem aplicatia ASGI folosita de server la rulare
 application = get_asgi_application()

@@ -1,8 +1,19 @@
+"""
+ExamSense+ - Documents Utilities
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- contine functii helper pentru extragerea textului din fisiere PDF si DOCX
+- pregateste continutul documentelor pentru procesarea NLP si AI
+- centralizeaza logica de citire a fisierelor incarcate de utilizator
+"""
+
 import PyPDF2
 from docx import Document as DocxDocument
 
 
-# extragem textul din toate paginile unui fisier pdf
+# extrage textul din toate paginile unui fisier PDF
 def extract_text_from_pdf(file):
     try:
         file.seek(0)
@@ -23,7 +34,7 @@ def extract_text_from_pdf(file):
         raise Exception(f"Eroare la citirea PDF-ului: {str(e)}")
 
 
-# extragem textul din toate paragrafele unui fisier docx
+# extrage textul din toate paragrafele unui fisier DOCX
 def extract_text_from_docx(file):
     try:
         file.seek(0)

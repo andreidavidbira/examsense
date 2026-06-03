@@ -1,3 +1,17 @@
+"""
+ExamSense+ - AI Prompt Builders
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- construieste prompturile trimise catre modelul AI
+- defineste regulile pentru generarea de definitii si intrebari de quiz
+- defineste regulile pentru solverul AI care rezolva quiz-urile
+- forteaza raspunsuri in format JSON valid, usor de procesat in backend
+"""
+
+
+# construieste promptul pentru generarea de definitii si intrebari pe baza unui document
 def build_quiz_generation_prompt(text, difficulty="medium", max_questions=10):
     return f"""
 Esti un asistent care citeste un document educational si produce:
@@ -54,6 +68,7 @@ Textul documentului este:
 """.strip()
 
 
+# construieste promptul pentru solverul AI care raspunde la intrebarile quiz-ului
 def build_quiz_solver_prompt(questions_payload):
     return f"""
 Esti un student virtual care rezolva un quiz.

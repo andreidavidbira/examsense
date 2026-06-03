@@ -1,3 +1,16 @@
+"""
+ExamSense+ - NLP Services
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- implementeaza logica principala de procesare NLP pentru extragerea definitiilor
+- detecteaza limba textului si selecteaza pattern-urile potrivite
+- curata si valideaza conceptele extrase din propozitii
+- filtreaza rezultatele slabe si ordoneaza definitiile dupa calitate
+- produce lista finala de definitii candidate folosita ulterior in aplicatie
+"""
+
 import re
 
 from langdetect import detect
@@ -5,7 +18,7 @@ from langdetect import detect
 from nlp.patterns import ENGLISH_PATTERNS, ROMANIAN_PATTERNS
 
 
-# detectam limba textului si o reducem la ro sau en
+# detecteaza limba textului si o reduce la ro sau en
 def detect_language(text):
     try:
         lang = detect(text)
@@ -14,12 +27,12 @@ def detect_language(text):
         return "en"
 
 
-# normalizam spatiile multiple din text
+# normalizeaza spatiile multiple din text
 def normalize_spaces(text):
     return re.sub(r"\s+", " ", text).strip()
 
 
-# verificam daca textul seamana mai degraba cu un titlu decat cu o definitie
+# verifica daca textul seamana mai degraba cu un titlu decat cu o definitie
 def is_heading_like(text):
     text = normalize_spaces(text)
 
@@ -35,7 +48,7 @@ def is_heading_like(text):
     return False
 
 
-# filtram propozitiile care nu sunt potrivite pentru extractia definitiilor
+# filtreaza propozitiile care nu sunt potrivite pentru extractia definitiilor
 def is_valid_sentence(sentence):
     sentence = normalize_spaces(sentence)
     sentence_lower = sentence.lower()
@@ -70,7 +83,7 @@ def is_valid_sentence(sentence):
     return True
 
 
-# luam ultima parte relevanta din contextul din stanga al unei definitii
+# ia ultima parte relevanta din contextul din stanga al unei definitii
 def split_left_context(raw_concept):
     raw_concept = normalize_spaces(raw_concept)
 
@@ -95,7 +108,7 @@ def split_left_context(raw_concept):
     return raw_concept
 
 
-# incercam sa extragem tinta reala in expresii de tipul "rolul ..."
+# incearca sa extraga tinta reala in expresii de tipul "rolul ..."
 def extract_role_target(text, lang):
     text = normalize_spaces(text)
     lower = text.lower()
@@ -123,7 +136,7 @@ def extract_role_target(text, lang):
     return text
 
 
-# curatam partea de concept inainte sa o salvam
+# curata partea de concept inainte sa fie salvata
 def extract_concept_smart(raw_concept, lang):
     raw_concept = split_left_context(raw_concept)
     raw_concept = extract_role_target(raw_concept, lang)
@@ -133,7 +146,6 @@ def extract_concept_smart(raw_concept, lang):
         return ""
 
     words = raw_concept.split()
-
     stop_starts = {"in", "la", "din", "pentru", "unde", "the", "a", "an"}
 
     while words and words[0].lower() in stop_starts:
@@ -148,7 +160,7 @@ def extract_concept_smart(raw_concept, lang):
     return " ".join(words)
 
 
-# curatam si normalizam conceptul extras
+# curata si normalizeaza conceptul extras
 def clean_concept(text):
     text = normalize_spaces(text.lower())
 
@@ -201,7 +213,7 @@ def clean_concept(text):
     return text
 
 
-# verificam daca forma finala a conceptului este suficient de buna
+# verifica daca forma finala a conceptului este suficient de buna
 def is_valid_concept(concept):
     words = concept.split()
 
@@ -226,7 +238,7 @@ def is_valid_concept(concept):
     return True
 
 
-# mai filtram o data definitiile dupa cateva reguli simple de calitate
+# mai filtreaza o data definitiile dupa cateva reguli simple de calitate
 def is_good_definition(item):
     definition = item["definition"].strip().lower()
     concept = item["concept"].strip().lower()
@@ -246,7 +258,7 @@ def is_good_definition(item):
     return True
 
 
-# calculam un scor simplu pentru a ordona definitiile mai bune in fata
+# calculeaza un scor simplu pentru a ordona definitiile mai bune in fata
 def score_definition(item):
     score = 0
 
@@ -284,7 +296,7 @@ def score_definition(item):
     return score
 
 
-# extragem toate definitiile candidate din lista de propozitii
+# extrage toate definitiile candidate din lista de propozitii
 def extract_definitions(sentences):
     definitions = []
 

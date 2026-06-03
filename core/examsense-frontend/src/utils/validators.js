@@ -1,3 +1,14 @@
+/*
+ExamSense+ - Frontend Validation Helpers
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste functiile de validare folosite in formularele din frontend
+- verifica datele introduse de utilizator inainte de trimiterea lor catre backend
+- centralizeaza regulile de validare pentru email, username, parola, upload si quiz-uri
+*/
+
 // validam formatul de baza pentru email
 export function validateEmail(email) {
   if (!email || !email.trim()) {

@@ -1,13 +1,27 @@
 <!doctype html>
+<!--
+ExamSense+ - Frontend HTML Entry Point
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste structura HTML de baza pentru frontend-ul aplicatiei
+- seteaza metadatele principale ale paginii
+- incarca punctul de intrare al aplicatiei React
+-->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ExamSense+</title>
   </head>
   <body>
+    <!-- aici este montata aplicatia React -->
     <div id="root"></div>
+
+    <!-- incarcam punctul principal de intrare al frontend-ului -->
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

@@ -1,9 +1,22 @@
+/*
+ExamSense+ - Mobile Menu Component
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste meniul mobil folosit in zona de navigatie a aplicatiei
+- afiseaza linkurile principale pe ecranele mici
+- permite acces rapid la logout si la datele de baza ale utilizatorului
+- anima aparitia si disparitia meniului pentru o experienta mai placuta
+*/
+
 import { AnimatePresence, motion } from 'framer-motion'
 import { LogOut } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 
 import { secondaryButtonClass } from '../../utils/buttonClasses'
 
+// afisam meniul mobil atunci cand navbar-ul este deschis pe ecrane mici
 export default function MobileMenu({ open, items, onClose, onLogout, user }) {
   return (
     <AnimatePresence>

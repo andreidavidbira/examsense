@@ -1,3 +1,15 @@
+/*
+ExamSense+ - Toast Context Provider
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste contextul global pentru notificari toast
+- expune functiile necesare pentru afisarea si inchiderea toast-urilor
+- randeaza lista de notificari active la nivelul intregii aplicatii
+- gestioneaza inchiderea automata a toast-urilor dupa un interval scurt
+*/
+
 import { createContext, useCallback, useMemo, useState } from 'react'
 import { X } from 'lucide-react'
 
@@ -5,6 +17,7 @@ export const ToastContext = createContext(null)
 
 let idCounter = 1
 
+// provider-ul pune la dispozitie functiile de toast pentru toata aplicatia
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([])
 
@@ -33,6 +46,7 @@ export function ToastProvider({ children }) {
     <ToastContext.Provider value={value}>
       {children}
 
+      {/* containerul global in care afisam toate notificarile active */}
       <div className="pointer-events-none fixed left-1/2 top-20 z-120 flex w-[calc(100%-1rem)] max-w-md -translate-x-1/2 flex-col gap-3 sm:left-auto sm:right-4 sm:top-4 sm:w-full sm:translate-x-0">
         {toasts.map((toast) => (
           <div

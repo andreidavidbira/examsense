@@ -1,9 +1,21 @@
+/*
+ExamSense+ - Statistic Card Component
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste componenta reutilizabila pentru afisarea indicatorilor numerici
+- standardizeaza cardurile de statistici din dashboard-uri si panouri
+- permite variatii vizuale prin accent si afisarea unui text suplimentar
+*/
+
 export default function StatCard({
   label,
   value,
   hint,
   accent = 'default',
 }) {
+  // stilurile principale ale cardului in functie de accentul ales
   const accentClasses = {
     default: 'border-slate-200/80 from-white to-slate-50',
     brand: 'border-brand-200/70 from-brand-50 to-white',
@@ -13,6 +25,7 @@ export default function StatCard({
     amber: 'border-amber-200/70 from-amber-50 to-white',
   }
 
+  // bara superioara colorata care ofera un indiciu vizual rapid
   const topBarClasses = {
     default: 'bg-slate-300',
     brand: 'bg-brand-500',

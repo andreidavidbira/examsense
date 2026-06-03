@@ -1,3 +1,14 @@
+/*
+ExamSense+ - Skeleton Card Component
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste un card placeholder pentru starea de loading
+- afiseaza o structura vizuala temporara pana la incarcarea datelor reale
+- mentine consistenta layout-ului in paginile care folosesc carduri
+*/
+
 import SkeletonBlock from './SkeletonBlock'
 
 // afisam un card placeholder cat timp datele reale sunt inca la incarcare

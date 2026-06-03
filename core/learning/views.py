@@ -1,3 +1,16 @@
+"""
+ExamSense+ - Learning Views
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- implementeaza endpoint-urile API pentru modulul de learning
+- construieste dashboardul de progres al utilizatorului
+- calculeaza statistici pe overall, NLP si AI
+- identifica conceptele la care utilizatorul greseste frecvent
+- genereaza recomandari de invatare si quiz-uri de recapitulare
+"""
+
 from django.db.models import Avg, Count, Max, Min
 
 from rest_framework.permissions import IsAuthenticated
@@ -13,6 +26,7 @@ from .serializers import (
 )
 
 
+# calculeaza indexul documentului in istoricul utilizatorului curent
 def get_user_document_number(user, document_id):
     try:
         document_obj = Document.objects.get(id=document_id, user=user)
@@ -26,6 +40,7 @@ def get_user_document_number(user, document_id):
     )
 
 
+# calculeaza indexul attemptului in istoricul utilizatorului curent
 def get_user_attempt_number(user, attempt_id):
     return (
         QuizAttempt.objects
@@ -34,6 +49,7 @@ def get_user_attempt_number(user, attempt_id):
     )
 
 
+# construieste statisticile pentru un grup de attempturi
 def build_mode_stats(attempts_queryset):
     answers_queryset = QuizAnswer.objects.filter(attempt__in=attempts_queryset)
     ai_attempts_queryset = AIQuizAttempt.objects.filter(quiz_attempt__in=attempts_queryset)
@@ -83,6 +99,7 @@ def build_mode_stats(attempts_queryset):
     }
 
 
+# identifica conceptele la care utilizatorul a gresit frecvent
 def build_weak_concepts(user, limit=10):
     wrong_answers = (
         QuizAnswer.objects
@@ -131,6 +148,7 @@ def build_weak_concepts(user, limit=10):
 class LearningDashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
+    # intoarce dashboardul complet de progres pentru utilizator
     def get(self, request):
         attempts = (
             QuizAttempt.objects
@@ -142,7 +160,6 @@ class LearningDashboardView(APIView):
         ai_attempts = attempts.filter(question_set__generation_mode="ai")
 
         weak_concepts = build_weak_concepts(request.user, limit=5)
-
         recent_attempts = []
 
         for attempt in attempts[:5]:
@@ -183,6 +200,7 @@ class LearningDashboardView(APIView):
 class WeakConceptsView(APIView):
     permission_classes = [IsAuthenticated]
 
+    # intoarce lista conceptelor slabe pentru utilizatorul curent
     def get(self, request):
         weak_concepts = build_weak_concepts(request.user, limit=20)
         serializer = WeakConceptSerializer(weak_concepts, many=True)
@@ -196,9 +214,9 @@ class WeakConceptsView(APIView):
 class RecommendationsView(APIView):
     permission_classes = [IsAuthenticated]
 
+    # genereaza recomandari de invatare pe baza conceptelor gresite frecvent
     def get(self, request):
         weak_concepts = build_weak_concepts(request.user, limit=10)
-
         recommendations = []
 
         for item in weak_concepts:
@@ -241,6 +259,7 @@ class RecommendationsView(APIView):
 class RetryQuizView(APIView):
     permission_classes = [IsAuthenticated]
 
+    # construieste un quiz de recapitulare pe baza conceptelor slabe
     def post(self, request):
         weak_concepts = build_weak_concepts(request.user, limit=10)
         concept_names = [item["concept"] for item in weak_concepts]

@@ -1,3 +1,15 @@
+/*
+ExamSense+ - Document Detail Page
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste pagina de detalii pentru un document incarcat
+- afiseaza informatii despre document, definitii si seturile de quiz generate
+- permite stergerea documentului si generarea unui quiz nou
+- ofera acces rapid la ultimul quiz sau la seturile existente
+*/
+
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
@@ -19,12 +31,14 @@ import {
 import { getDisplayFileName } from '../../utils/fileHelpers'
 import { formatDateTime } from '../../utils/dateFormat'
 
+// alegem stilul badge-ului in functie de metoda de generare
 function modeBadgeClass(mode) {
   return mode === 'ai'
     ? 'rounded-full bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700'
     : 'rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700'
 }
 
+// afisam pagina de detalii pentru documentul selectat
 export default function DocumentDetailPage() {
   usePageTitle('Detalii document')
 
@@ -40,6 +54,7 @@ export default function DocumentDetailPage() {
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false)
 
   useEffect(() => {
+    // incarcam toate detaliile documentului selectat
     async function fetchDocument() {
       try {
         const response = await api.get(`/documents/${id}/`)
@@ -56,6 +71,7 @@ export default function DocumentDetailPage() {
 
   const latestQuestionSetId = documentData?.latest_question_set_id || null
 
+  // grupam definitiile dupa sursa de generare pentru afisare mai clara
   const groupedDefinitions = useMemo(() => {
     const definitions = documentData?.definitions || []
 
@@ -65,6 +81,7 @@ export default function DocumentDetailPage() {
     }
   }, [documentData])
 
+  // stergem documentul dupa confirmare si revenim la lista
   async function handleDeleteConfirmed() {
     try {
       await api.delete(`/documents/${id}/delete/`)
@@ -77,19 +94,22 @@ export default function DocumentDetailPage() {
     }
   }
 
+  // generam un nou set de intrebari pentru documentul curent
   async function handleGenerateNewQuiz(options) {
     try {
       setIsGeneratingQuiz(true)
 
-      const response = await api.post(`/documents/${id}/regenerate-questions/`, {
-        difficulty: options.difficulty,
-        max_questions: options.max_questions,
-        generation_mode: options.generation_mode,
-      },
-    {
-      timeout: 120000, // 2 minute timeout pentru generare AI
-    }
-  )
+      const response = await api.post(
+        `/documents/${id}/regenerate-questions/`,
+        {
+          difficulty: options.difficulty,
+          max_questions: options.max_questions,
+          generation_mode: options.generation_mode,
+        },
+        {
+          timeout: 120000, // timeout mai mare pentru generarea cu AI
+        }
+      )
 
       showToast('A fost generat un nou set de întrebări.', 'success')
       navigate(`/quiz/${response.data.question_set_id}`)
@@ -331,7 +351,7 @@ export default function DocumentDetailPage() {
                         className="rounded-2xl border border-slate-200 bg-white p-4"
                       >
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700">
+                          <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">
                             {item.language.toUpperCase()}
                           </span>
                           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
@@ -356,7 +376,7 @@ export default function DocumentDetailPage() {
 
         <SectionCard
           title="Întrebări generate"
-          subtitle="Preview pentru toate întrebările salvate pentru document."
+          subtitle="Preview pentru quiz-urile asociate documentului."
         >
           {documentData.generated_questions.length === 0 ? (
             <EmptyState
@@ -371,14 +391,8 @@ export default function DocumentDetailPage() {
                   className="rounded-2xl border border-slate-200 bg-white p-4"
                 >
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className={modeBadgeClass(question.generation_mode)}>
-                      {question.generation_mode.toUpperCase()}
-                    </span>
                     <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
                       {question.question_type}
-                    </span>
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-                      Set #{question.question_set_id}
                     </span>
                     <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">
                       {question.language.toUpperCase()}

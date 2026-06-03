@@ -1,3 +1,15 @@
+/*
+ExamSense+ - Profile Page
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste pagina de profil a utilizatorului
+- afiseaza si permite editarea datelor principale ale contului
+- valideaza local campurile importante din formular
+- trimite modificarile catre backend si actualizeaza profilul din context
+*/
+
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -19,6 +31,7 @@ import {
   validateUsername,
 } from '../../utils/validators'
 
+// afisam pagina de profil si permitem actualizarea datelor de baza ale utilizatorului
 export default function ProfilePage() {
   usePageTitle('Profilul meu')
 

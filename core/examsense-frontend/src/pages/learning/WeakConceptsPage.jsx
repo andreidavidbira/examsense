@@ -1,3 +1,14 @@
+/*
+ExamSense+ - Weak Concepts Page
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste pagina care afiseaza conceptele slabe ale utilizatorului
+- incarca lista conceptelor la care au fost inregistrate cele mai multe greseli
+- evidentiaza zonele care necesita recapitulare suplimentara
+*/
+
 import { useEffect, useState } from 'react'
 
 import api from '../../api/axios'
@@ -6,6 +17,7 @@ import PageContainer from '../../components/common/PageContainer'
 import SectionCard from '../../components/common/SectionCard'
 import usePageTitle from '../../hooks/usePageTitle'
 
+// afisam conceptele unde utilizatorul are cele mai multe dificultati
 export default function WeakConceptsPage() {
   usePageTitle('Concepte slabe')
 

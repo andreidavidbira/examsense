@@ -1,3 +1,16 @@
+"""
+ExamSense+ - Django Settings
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste configuratia globala a proiectului Django
+- incarca variabilele de mediu din fisierul .env
+- configureaza baza de date, autentificarea, securitatea si aplicatiile folosite
+- stabileste setarile pentru upload, email, OpenAI, CORS, CSRF si JWT
+- separa comportamentul pentru development si productie
+"""
+
 from pathlib import Path
 from datetime import timedelta
 import os
@@ -22,7 +35,7 @@ ALLOWED_HOSTS = os.getenv(
 ).split(",")
 
 
-# aici inregistram toate aplicatiile folosite in proiect
+# aplicatiile instalate in proiect
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -40,13 +53,12 @@ INSTALLED_APPS = [
     "documents",
     "nlp",
     "quiz",
-    "progress",
     "learning",
     "adminpanel",
 ]
 
 
-# aici definim middleware-urile folosite de proiect
+# middleware-urile folosite pe tot proiectul
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
@@ -62,7 +74,7 @@ MIDDLEWARE = [
 ROOT_URLCONF = "core.urls"
 
 
-# configuram sistemul de template-uri Django
+# configuratia pentru template-urile Django
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -82,7 +94,7 @@ TEMPLATES = [
 WSGI_APPLICATION = "core.wsgi.application"
 
 
-# baza de date
+# alegem baza de date in functie de variabila de mediu
 DB_ENGINE = os.getenv("DB_ENGINE", "postgres")
 
 if DB_ENGINE == "postgres":
@@ -105,7 +117,7 @@ else:
     }
 
 
-# definim regulile de baza pentru parole
+# reguli de baza pentru validarea parolelor
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
@@ -132,7 +144,7 @@ USE_I18N = True
 USE_TZ = True
 
 
-# configuram fisierele statice si fisierele media incarcate de utilizatori
+# configuram fisierele statice si fisierele media
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
@@ -140,7 +152,7 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 
-# folosim modelul nostru custom de utilizator
+# folosim modelul custom de utilizator definit in aplicatia users
 AUTH_USER_MODEL = "users.User"
 
 
@@ -154,7 +166,7 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
 ]
 
 
-# avem incredere in frontend-ul local pentru cererile protejate cu csrf
+# marcam frontend-ul local ca origine de incredere pentru cereri protejate cu csrf
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
 ]
@@ -163,7 +175,7 @@ CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = "Lax"
 
 
-# configuram cookie-urile folosite pentru autentificare
+# setari pentru cookie-urile folosite la autentificare
 AUTH_COOKIE_ACCESS = "access_token"
 AUTH_COOKIE_REFRESH = "refresh_token"
 AUTH_COOKIE_SAMESITE = "Lax"
@@ -173,7 +185,7 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 
 
-# aici configuram autentificarea si limitarile pentru API
+# configuram autentificarea si limitarile de rata pentru API
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "users.authentication.CookieJWTAuthentication",
@@ -197,7 +209,7 @@ REST_FRAMEWORK = {
 }
 
 
-# configuram durata tokenurilor jwt
+# durata tokenurilor JWT
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
@@ -213,7 +225,7 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 
 
-# activam cateva headere de securitate utile
+# cateva headere de securitate utile
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
@@ -221,7 +233,7 @@ SECURE_REFERRER_POLICY = "same-origin"
 SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 
 
-# daca nu suntem in debug, fortam folosirea setarilor pentru productie
+# in productie activam setarile stricte de securitate
 if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
@@ -238,7 +250,7 @@ else:
     AUTH_COOKIE_SECURE = False
 
 
-# configuram trimiterea emailurilor prin smtp
+# configuram trimiterea emailurilor prin SMTP
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = os.getenv("EMAIL_HOST", "")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
@@ -247,6 +259,7 @@ EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True") == "True"
 EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "False") == "True"
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER)
+
 
 # configuram OpenAI
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
@@ -257,7 +270,8 @@ OPENAI_QUESTION_MODEL = os.getenv("OPENAI_QUESTION_MODEL", "gpt-5.4-mini")
 # modelul separat care rezolva quizul
 OPENAI_SOLVER_MODEL = os.getenv("OPENAI_SOLVER_MODEL", "gpt-5.4-mini")
 
-# limitare simpla pentru a nu trimite documente foarte mari dintr-o singura cerere
+# limitam dimensiunea textului trimis catre AI intr-o singura cerere
 OPENAI_INPUT_MAX_CHARS = int(os.getenv("OPENAI_INPUT_MAX_CHARS", "60000"))
+
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

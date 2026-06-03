@@ -1,3 +1,15 @@
+/*
+ExamSense+ - Retry Quiz Page
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste pagina pentru quiz-ul de recapitulare
+- incarca intrebarile generate din conceptele la care utilizatorul a gresit frecvent
+- afiseaza un preview clar al intrebarilor primite din backend
+- ofera o recapitulare rapida pentru consolidarea cunostintelor
+*/
+
 import { useEffect, useState } from 'react'
 
 import api from '../../api/axios'
@@ -6,6 +18,7 @@ import PageContainer from '../../components/common/PageContainer'
 import SectionCard from '../../components/common/SectionCard'
 import usePageTitle from '../../hooks/usePageTitle'
 
+// afisam intrebarile generate special pentru recapitularea conceptelor slabe
 export default function RetryQuizPage() {
   usePageTitle('Quiz de recapitulare')
 

@@ -1,3 +1,15 @@
+/*
+ExamSense+ - Home Page
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste pagina principala a aplicatiei
+- prezinta pe scurt functionalitatile esentiale ale platformei
+- adapteaza butoanele principale in functie de starea de autentificare
+- pune accent pe flow-ul general al produsului si pe comparatia user vs AI
+*/
+
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 
@@ -6,6 +18,7 @@ import SectionCard from '../components/common/SectionCard'
 import { useAuth } from '../hooks/useAuth'
 import usePageTitle from '../hooks/usePageTitle'
 
+// lista de functionalitati prezentate in sectiunea de overview
 const features = [
   {
     title: 'Upload rapid',
@@ -25,12 +38,14 @@ const features = [
   },
 ]
 
+// scurte informatii de impact afisate langa mesajul principal
 const stats = [
   { label: 'Moduri generare', value: 'NLP + AI' },
   { label: 'Comparație', value: 'User vs AI' },
   { label: 'Fișiere acceptate', value: 'PDF / DOCX' },
 ]
 
+// afisam pagina de start si schimbam actiunile principale in functie de autentificare
 export default function HomePage() {
   usePageTitle('Acasă')
   const { isAuthenticated } = useAuth()

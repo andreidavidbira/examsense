@@ -1,3 +1,15 @@
+/*
+ExamSense+ - Quiz History Page
+Copyright (c) Bîra Andrei-David.
+Acest fisier face parte din proiectul ExamSense+.
+
+Rolul fisierului:
+- defineste pagina care afiseaza istoricul quiz-urilor finalizate
+- incarca lista attempt-urilor rezolvate de utilizator
+- permite reluarea unui quiz, generarea unuia nou si accesul la detalii
+- afiseaza informatii relevante despre scoruri, timp si comparatia user vs AI
+*/
+
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
@@ -15,12 +27,14 @@ import {
 import { formatDuration } from '../../utils/timeFormat'
 import { formatDateTime } from '../../utils/dateFormat'
 
+// alegem stilul badge-ului in functie de metoda prin care a fost generat quiz-ul
 function modeBadgeClass(mode) {
   return mode === 'ai'
     ? 'rounded-full bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700'
     : 'rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700'
 }
 
+// afisam istoricul attempt-urilor finalizate si actiunile posibile pentru fiecare
 export default function QuizHistoryPage() {
   usePageTitle('Istoric quiz-uri')
 
