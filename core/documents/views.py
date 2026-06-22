@@ -97,6 +97,8 @@ def ensure_nlp_definitions(document):
 
     if existing:
         return list(document.definitions.filter(generation_mode="nlp").order_by("id"))
+    
+    start_time = time.perf_counter()
 
     text = document.extracted_text or ""
     result = process_text(text)
@@ -115,6 +117,12 @@ def ensure_nlp_definitions(document):
             generation_mode="nlp",
         )
         created.append(obj)
+    
+    duration = time.perf_counter() - start_time
+    print(
+        f"[NLP DEFINITION EXTRACTION] document_id={document.id}, "
+        f"definitions={len(created)}, duration={duration:.4f}s"
+    )
 
     return created
 
@@ -140,6 +148,8 @@ def save_ai_definitions(document, definitions):
 
 # construieste intrebarile NLP pornind de la definitiile deja salvate pentru document
 def build_questions_for_document_nlp(document, question_set, difficulty="medium", max_q=10):
+    start_time = time.perf_counter()
+
     db_definitions = list(
         document.definitions
         .filter(generation_mode="nlp")
@@ -220,6 +230,15 @@ def build_questions_for_document_nlp(document, question_set, difficulty="medium"
             correct_answer=str(question_data.get("correct_answer")),
         )
         saved_questions.append(saved_question)
+    
+        duration = time.perf_counter() - start_time
+
+        print(
+        f"[NLP QUIZ GENERATION] document_id={document.id}, "
+        f"difficulty={difficulty}, requested={max_q}, "
+        f"definitions={len(definitions)}, generated={len(saved_questions)}, "
+        f"duration={duration:.4f}s"
+        )  
 
     return saved_questions
 

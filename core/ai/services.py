@@ -14,6 +14,7 @@ Rolul fisierului:
 import json
 import random
 import re
+import time
 
 from django.conf import settings
 from openai import OpenAI
@@ -322,6 +323,8 @@ def _request_quiz_bundle_once(trimmed_text, difficulty, requested_questions):
 
 # genereaza definitii si intrebari cu AI, cu o a doua incercare daca nu ies suficiente
 def generate_quiz_bundle_with_ai(text, difficulty="medium", max_questions=10):
+    start_time = time.perf_counter()
+
     if not text or not str(text).strip():
         raise ValueError("Document text is empty.")
 
@@ -372,6 +375,13 @@ def generate_quiz_bundle_with_ai(text, difficulty="medium", max_questions=10):
 
     if not final_questions:
         raise ValueError("AI did not generate valid quiz questions.")
+    
+    duration = time.perf_counter() - start_time
+    print(
+        f"[AI QUIZ GENERATION] difficulty={difficulty}, "
+        f"requested={max_questions}, generated={len(final_questions)}, "
+        f"duration={duration:.4f}s"
+    )
 
     return {
         "definitions": all_definitions,

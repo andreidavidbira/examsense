@@ -41,6 +41,7 @@ import {
 import { getDisplayFileName } from '../../utils/fileHelpers'
 import { formatDuration } from '../../utils/timeFormat'
 import { formatDateTime } from '../../utils/dateFormat'
+import Pagination from '../../components/common/Pagination'
 
 const PAGE_SIZE = 5
 const ANSWER_COLORS = ['#10b981', '#f43f5e']
@@ -53,33 +54,6 @@ function compactButtonClass(baseClass) {
   return `${baseClass} min-h-0 px-3 py-2 text-xs sm:text-sm`
 }
 
-// componenta simpla de paginare pentru listele din dashboard
-function SmallPagination({ page, totalPages, onChange }) {
-  if (totalPages <= 1) return null
-
-  return (
-    <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
-      {Array.from({ length: totalPages }).map((_, index) => {
-        const pageNumber = index + 1
-        const active = pageNumber === page
-
-        return (
-          <button
-            key={pageNumber}
-            onClick={() => onChange(pageNumber)}
-            className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
-              active
-                ? 'bg-slate-950 text-white'
-                : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-            }`}
-          >
-            {pageNumber}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
 
 // extragem elementele pentru pagina curenta
 function paginate(items, page) {
@@ -575,7 +549,7 @@ export default function AdminDashboardPage() {
             })}
           </div>
 
-          <SmallPagination
+          <Pagination
             page={usersPage}
             totalPages={totalPages(users)}
             onChange={setUsersPage}
@@ -716,7 +690,7 @@ export default function AdminDashboardPage() {
             ))}
           </div>
 
-          <SmallPagination
+          <Pagination
             page={documentsPage}
             totalPages={totalPages(documents)}
             onChange={setDocumentsPage}
@@ -768,7 +742,7 @@ export default function AdminDashboardPage() {
             ))}
           </div>
 
-          <SmallPagination
+          <Pagination
             page={questionSetsPage}
             totalPages={totalPages(questionSets)}
             onChange={setQuestionSetsPage}
@@ -836,7 +810,7 @@ export default function AdminDashboardPage() {
             ))}
           </div>
 
-          <SmallPagination
+          <Pagination
             page={attemptsPage}
             totalPages={totalPages(attempts)}
             onChange={setAttemptsPage}

@@ -7,10 +7,12 @@ Rolul fisierului:
 - defineste pagina pentru incarcarea documentelor in platforma
 - valideaza fisierul si optiunile alese de utilizator
 - explica vizual diferentele dintre modurile NLP si AI
+- afiseaza un overlay de procesare compatibil cu modul NLP si modul AI
+- parcurge vizual toti pasii de procesare inainte de redirectionare
 - trimite documentul catre backend pentru procesare si redirectioneaza utilizatorul dupa succes
 */
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import api from '../../api/axios'
@@ -25,7 +27,6 @@ import {
   validateUploadFile,
 } from '../../utils/validators'
 
-// mesaje scurte afisate in partea introductiva a paginii
 const uploadHighlights = [
   'Încarci PDF sau DOCX',
   'Alegi generare cu NLP sau AI',
@@ -33,7 +34,186 @@ const uploadHighlights = [
   'Poți compara performanța ta cu AI',
 ]
 
-// afisam formularul de upload si gestionam trimiterea documentului spre backend
+const processingConfigs = {
+  nlp: {
+    title: 'Procesare NLP în desfășurare',
+    badge: 'Mod NLP',
+    description:
+      'Aplicația extrage textul, identifică definițiile și construiește întrebări pe baza pipeline-ului NLP.',
+    waitMessage:
+      'Te rugăm să nu închizi pagina. Pentru documente mari, procesarea NLP poate dura câteva zeci de secunde.',
+    steps: [
+      {
+        title: 'Se extrage textul',
+        description: 'Documentul este citit și convertit într-un text analizabil.',
+      },
+      {
+        title: 'Se curăță conținutul',
+        description:
+          'Sunt eliminate spațiile inutile, artefactele din PDF și fragmentele care pot produce zgomot.',
+      },
+      {
+        title: 'Se identifică definițiile',
+        description:
+          'Pipeline-ul NLP caută concepte, definiții și formulări relevante în română și engleză.',
+      },
+      {
+        title: 'Se generează întrebările',
+        description:
+          'Definițiile extrase sunt transformate automat în întrebări pentru quiz.',
+      },
+      {
+        title: 'Se salvează rezultatul',
+        description:
+          'Documentul, definițiile și întrebările generate sunt salvate în contul tău.',
+      },
+    ],
+  },
+  ai: {
+    title: 'Generare AI în desfășurare',
+    badge: 'Mod AI',
+    description:
+      'Modelul AI analizează documentul și generează direct definiții și întrebări relevante.',
+    waitMessage:
+      'Te rugăm să nu închizi pagina. Modul AI poate dura mai mult, mai ales pentru documente mari.',
+    steps: [
+      {
+        title: 'Se extrage textul',
+        description: 'Documentul este citit și pregătit pentru analiza automată.',
+      },
+      {
+        title: 'Se pregătește conținutul',
+        description:
+          'Textul este structurat pentru a putea fi trimis către modulul de generare AI.',
+      },
+      {
+        title: 'AI-ul analizează documentul',
+        description:
+          'Modelul identifică ideile importante, conceptele și informațiile utile pentru evaluare.',
+      },
+      {
+        title: 'AI-ul generează quiz-ul',
+        description:
+          'Pe baza materialului, sunt generate definiții și întrebări adaptate dificultății alese.',
+      },
+      {
+        title: 'Se salvează rezultatul',
+        description:
+          'Documentul și quiz-ul generat sunt salvate pentru a putea fi accesate ulterior.',
+      },
+    ],
+  },
+}
+
+// functie simpla folosita pentru animatia finala a overlay-ului
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function ProcessingOverlay({ currentStep, generationMode }) {
+  const config = processingConfigs[generationMode] || processingConfigs.nlp
+  const isAiMode = generationMode === 'ai'
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/65 px-4 py-6 backdrop-blur-sm">
+      <div className="w-full max-w-2xl rounded-[32px] border border-white/20 bg-white p-5 shadow-2xl sm:p-7">
+        <div className="mb-6 text-center">
+          <div
+            className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl ${
+              isAiMode
+                ? 'bg-violet-50 text-violet-700'
+                : 'bg-brand-50 text-brand-700'
+            }`}
+          >
+            <div
+              className={`h-8 w-8 animate-spin rounded-full border-4 border-current border-t-transparent ${
+                isAiMode ? 'text-violet-700' : 'text-brand-700'
+              }`}
+            />
+          </div>
+
+          <span
+            className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${
+              isAiMode
+                ? 'border-violet-200 bg-violet-50 text-violet-700'
+                : 'border-brand-200 bg-brand-50 text-brand-700'
+            }`}
+          >
+            {config.badge}
+          </span>
+
+          <h2 className="mt-3 text-2xl font-bold text-slate-950">
+            {config.title}
+          </h2>
+
+          <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-600">
+            {config.description}
+          </p>
+
+          <p className="mx-auto mt-2 max-w-xl text-xs leading-5 text-slate-500">
+            {config.waitMessage}
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          {config.steps.map((step, index) => {
+            const isDone = index < currentStep
+            const isActive = index === currentStep
+
+            let containerClass = 'border-slate-200 bg-slate-50'
+            let circleClass = 'bg-slate-200 text-slate-500'
+            let circleContent = index + 1
+
+            if (isDone) {
+              containerClass = 'border-emerald-200 bg-emerald-50'
+              circleClass = 'bg-emerald-600 text-white'
+              circleContent = '✓'
+            }
+
+            if (isActive) {
+              containerClass = isAiMode
+                ? 'border-violet-200 bg-violet-50'
+                : 'border-brand-200 bg-brand-50'
+
+              circleClass = isAiMode
+                ? 'bg-violet-600 text-white'
+                : 'bg-brand-600 text-white'
+
+              circleContent = (
+                <span className="block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              )
+            }
+
+            return (
+              <div
+                key={step.title}
+                className={`flex items-start gap-4 rounded-2xl border p-4 transition ${containerClass}`}
+              >
+                <div
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold ${circleClass}`}
+                >
+                  {circleContent}
+                </div>
+
+                <div className="min-w-0">
+                  <p className="font-semibold text-slate-900">{step.title}</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">
+                    {step.description}
+                  </p>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        <p className="mt-5 text-center text-xs text-slate-500">
+          După finalizare vei fi redirecționat automat către pagina documentului.
+        </p>
+      </div>
+    </div>
+  )
+}
+
 export default function UploadPage() {
   usePageTitle('Încarcă document')
 
@@ -47,8 +227,11 @@ export default function UploadPage() {
   const [touched, setTouched] = useState({})
   const [errors, setErrors] = useState([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [processingStep, setProcessingStep] = useState(0)
 
-  // validam local campurile importante pentru feedback imediat in UI
+  const processingStepRef = useRef(0)
+  const isCompletingAnimationRef = useRef(false)
+
   const liveErrors = useMemo(() => {
     return {
       file: validateUploadFile(file),
@@ -58,7 +241,41 @@ export default function UploadPage() {
 
   const hasLiveErrors = Object.values(liveErrors).some(Boolean)
 
-  // marcam un camp ca fiind atins pentru a afisa erorile doar dupa interactiune
+  // pastram pasul curent si intr-un ref pentru animatia de final
+  useEffect(() => {
+    processingStepRef.current = processingStep
+  }, [processingStep])
+
+  // simulam progresul vizual al procesarii fara sa schimbam contractul cu backend-ul
+  useEffect(() => {
+    if (!isSubmitting) {
+      setProcessingStep(0)
+      processingStepRef.current = 0
+      isCompletingAnimationRef.current = false
+      return
+    }
+
+    const steps = processingConfigs[generationMode]?.steps || processingConfigs.nlp.steps
+
+    const interval = setInterval(() => {
+      setProcessingStep((prev) => {
+        // daca request-ul s-a terminat, animatia finala controleaza pasii ramasi
+        if (isCompletingAnimationRef.current) {
+          return prev
+        }
+
+        // ultimul pas ramane rezervat pentru momentul in care backend-ul a terminat
+        if (prev >= steps.length - 2) {
+          return prev
+        }
+
+        return prev + 1
+      })
+    }, generationMode === 'ai' ? 3200 : 2400)
+
+    return () => clearInterval(interval)
+  }, [generationMode, isSubmitting])
+
   function handleBlur(fieldName) {
     setTouched((prev) => ({
       ...prev,
@@ -66,7 +283,26 @@ export default function UploadPage() {
     }))
   }
 
-  // trimitem documentul catre backend impreuna cu optiunile selectate
+  // dupa ce backend-ul raspunde, parcurgem vizual pasii ramasi inainte de redirect
+  async function finishProcessingAnimation(mode) {
+    const steps = processingConfigs[mode]?.steps || processingConfigs.nlp.steps
+    const delay = mode === 'ai' ? 700 : 550
+
+    isCompletingAnimationRef.current = true
+
+    const currentStep = processingStepRef.current
+    const startStep = Math.min(currentStep + 1, steps.length - 1)
+
+    for (let index = startStep; index < steps.length; index += 1) {
+      setProcessingStep(index)
+      processingStepRef.current = index
+      await wait(delay)
+    }
+
+    // lasam ultimul pas vizibil putin, ca utilizatorul sa observe finalizarea
+    await wait(500)
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
 
@@ -81,13 +317,19 @@ export default function UploadPage() {
       return
     }
 
+    const selectedGenerationMode = generationMode
+
+    setProcessingStep(0)
+    processingStepRef.current = 0
+    isCompletingAnimationRef.current = false
     setIsSubmitting(true)
 
     try {
       const formData = new FormData()
+
       formData.append('file', file)
       formData.append('difficulty', difficulty)
-      formData.append('generation_mode', generationMode)
+      formData.append('generation_mode', selectedGenerationMode)
       formData.append('max_questions', maxQuestions)
 
       const response = await api.post('/documents/upload/', formData, {
@@ -96,6 +338,8 @@ export default function UploadPage() {
         },
         timeout: 120000,
       })
+
+      await finishProcessingAnimation(selectedGenerationMode)
 
       showToast('Document încărcat și procesat cu succes.', 'success')
       navigate(`/documents/${response.data.id}`)
@@ -114,6 +358,13 @@ export default function UploadPage() {
 
   return (
     <PageContainer>
+      {isSubmitting && (
+        <ProcessingOverlay
+          currentStep={processingStep}
+          generationMode={generationMode}
+        />
+      )}
+
       <div className="grid gap-8 py-8 lg:grid-cols-[0.95fr_1.05fr] lg:py-12">
         <div className="min-w-0">
           <div className="rounded-[30px] border border-brand-100 bg-linear-to-br from-brand-50 via-violet-50 to-white p-6 shadow-sm sm:p-8">
@@ -122,7 +373,8 @@ export default function UploadPage() {
             </span>
 
             <h1 className="mt-5 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-              Transformă rapid materialele tale în definiții, quiz-uri și comparații{' '}
+              Transformă rapid materialele tale în definiții, quiz-uri și
+              comparații{' '}
               <span className="bg-linear-to-r from-brand-600 via-violet-600 to-cyan-500 bg-clip-text text-transparent">
                 User vs AI
               </span>
@@ -130,8 +382,8 @@ export default function UploadPage() {
             </h1>
 
             <p className="mt-4 max-w-xl text-sm leading-7 text-slate-600 sm:text-base">
-              Încarcă un fișier, alege metoda de generare și lasă aplicația să construiască un flow
-              complet de învățare și evaluare.
+              Încarcă un fișier, alege metoda de generare și lasă aplicația să
+              construiască un flow complet de învățare și evaluare.
             </p>
 
             <div className="mt-6 grid gap-3">
@@ -149,6 +401,7 @@ export default function UploadPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <p className="text-sm font-medium text-slate-500">Mod NLP</p>
+
                   <p className="mt-2 text-sm leading-7 text-slate-600">
                     Pipeline clasic pentru extragere și generare de întrebări.
                   </p>
@@ -156,8 +409,10 @@ export default function UploadPage() {
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <p className="text-sm font-medium text-slate-500">Mod AI</p>
+
                   <p className="mt-2 text-sm leading-7 text-slate-600">
-                    Modelul citește documentul și generează direct definiții și quiz-uri.
+                    Modelul citește documentul și generează direct definiții și
+                    quiz-uri.
                   </p>
                 </div>
               </div>
@@ -175,6 +430,7 @@ export default function UploadPage() {
               <label className="mb-2 block text-sm font-medium text-slate-700">
                 Fișier
               </label>
+
               <input
                 type="file"
                 accept=".pdf,.docx"
@@ -182,6 +438,7 @@ export default function UploadPage() {
                 onBlur={() => handleBlur('file')}
                 className="block w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
               />
+
               {touched.file && liveErrors.file && (
                 <p className="mt-2 text-xs text-rose-600">{liveErrors.file}</p>
               )}
@@ -192,6 +449,7 @@ export default function UploadPage() {
                 <label className="mb-2 block text-sm font-medium text-slate-700">
                   Metodă generare
                 </label>
+
                 <select
                   value={generationMode}
                   onChange={(e) => setGenerationMode(e.target.value)}
@@ -206,6 +464,7 @@ export default function UploadPage() {
                 <label className="mb-2 block text-sm font-medium text-slate-700">
                   Dificultate
                 </label>
+
                 <select
                   value={difficulty}
                   onChange={(e) => setDifficulty(e.target.value)}
@@ -221,6 +480,7 @@ export default function UploadPage() {
                 <label className="mb-2 block text-sm font-medium text-slate-700">
                   Număr întrebări
                 </label>
+
                 <input
                   type="number"
                   min="1"
@@ -230,6 +490,7 @@ export default function UploadPage() {
                   onBlur={() => handleBlur('maxQuestions')}
                   className="w-full rounded-2xl border border-slate-200 px-4 py-3"
                 />
+
                 {touched.maxQuestions && liveErrors.maxQuestions && (
                   <p className="mt-2 text-xs text-rose-600">
                     {liveErrors.maxQuestions}
@@ -238,7 +499,6 @@ export default function UploadPage() {
               </div>
             </div>
 
-            {/* afisam o explicatie scurta pentru metoda selectata */}
             <div
               className={`rounded-3xl border px-4 py-4 text-sm ${
                 generationMode === 'nlp'
