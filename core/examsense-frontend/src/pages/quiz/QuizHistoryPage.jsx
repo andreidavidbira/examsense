@@ -19,7 +19,6 @@ import PageContainer from '../../components/common/PageContainer'
 import Pagination from '../../components/common/Pagination'
 import QuizOptionsDialog from '../../components/common/QuizOptionsDialog'
 import SectionCard from '../../components/common/SectionCard'
-import useClientPagination from '../../hooks/useClientPagination'
 import usePageTitle from '../../hooks/usePageTitle'
 import { useToast } from '../../hooks/useToast'
 import {
@@ -28,6 +27,8 @@ import {
 } from '../../utils/buttonClasses'
 import { formatDateTime } from '../../utils/dateFormat'
 import { formatDuration } from '../../utils/timeFormat'
+
+const PAGE_SIZE = 10
 
 // alegem stilul badge-ului in functie de metoda prin care a fost generat quiz-ul
 function modeBadgeClass(mode) {
@@ -43,36 +44,43 @@ export default function QuizHistoryPage() {
   const navigate = useNavigate()
   const { showToast } = useToast()
 
-  const [data, setData] = useState(null)
+  const [attempts, setAttempts] = useState([])
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedDocumentId, setSelectedDocumentId] = useState(null)
   const [selectedGenerationMode, setSelectedGenerationMode] = useState('nlp')
   const [quizOptionsOpen, setQuizOptionsOpen] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
 
-  // lista completa de attempt-uri primita de la backend
-  const attempts = data?.results || []
-
-  // impartim istoricul in pagini de maximum 10 attempt-uri
-  const {
-    page,
-    totalPages,
-    paginatedItems: paginatedAttempts,
-    setPage,
-  } = useClientPagination(attempts, 10)
-
   useEffect(() => {
+    // incarcam doar pagina curenta din istoric, nu toate attempt-urile
     async function fetchHistory() {
       try {
-        const response = await api.get('/documents/quiz-history/')
-        setData(response.data)
+        setLoading(true)
+        setError('')
+
+        const response = await api.get('/documents/quiz-history/', {
+          params: {
+            page,
+            page_size: PAGE_SIZE,
+          },
+        })
+
+        setAttempts(response.data.results || [])
+        setTotalPages(response.data.total_pages || 1)
+        setTotalCount(response.data.count || 0)
       } catch {
         setError('Nu am putut încărca istoricul quiz-urilor.')
+      } finally {
+        setLoading(false)
       }
     }
 
     fetchHistory()
-  }, [])
+  }, [page])
 
   function handleReplaySame(questionSetId) {
     navigate(`/quiz/${questionSetId}`)
@@ -123,7 +131,7 @@ export default function QuizHistoryPage() {
     )
   }
 
-  if (!data) {
+  if (loading) {
     return (
       <PageContainer>
         <p className="text-sm text-slate-500">Se încarcă istoricul...</p>
@@ -151,7 +159,7 @@ export default function QuizHistoryPage() {
         title="Istoric quiz-uri"
         subtitle="Toate quiz-urile finalizate până acum."
       >
-        {attempts.length === 0 ? (
+        {totalCount === 0 ? (
           <EmptyState
             title="Nu există quiz-uri finalizate"
             description="Completează un quiz pentru a vedea istoricul aici."
@@ -159,7 +167,7 @@ export default function QuizHistoryPage() {
         ) : (
           <>
             <div className="grid gap-4">
-              {paginatedAttempts.map((attempt) => (
+              {attempts.map((attempt) => (
                 <div
                   key={attempt.id}
                   className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-brand-200 hover:shadow-md"

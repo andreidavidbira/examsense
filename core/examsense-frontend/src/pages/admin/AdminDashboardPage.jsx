@@ -49,22 +49,53 @@ const COMPARE_COLORS = ['#0f172a', '#8b5cf6']
 const MODE_COLORS = ['#10b981', '#8b5cf6']
 const USER_DUEL_COLORS = ['#0f172a', '#8b5cf6', '#f59e0b']
 
+
 // micsoram usor butoanele pentru zonele dense din admin
 function compactButtonClass(baseClass) {
   return `${baseClass} min-h-0 px-3 py-2 text-xs sm:text-sm`
 }
 
 
-// extragem elementele pentru pagina curenta
-function paginate(items, page) {
-  const start = (page - 1) * PAGE_SIZE
-  return items.slice(start, start + PAGE_SIZE)
+// parametri trimisi catre endpoint-urile paginate din backend
+function pageParams(page) {
+  return {
+    params: {
+      page,
+      page_size: PAGE_SIZE,
+    },
+  }
 }
 
-// calculam numarul total de pagini pentru o colectie
-function totalPages(items) {
-  return Math.max(1, Math.ceil(items.length / PAGE_SIZE))
+
+// normalizam raspunsul paginat primit din backend
+function normalizePaginatedResponse(data, fallbackPage = 1) {
+  const results = Array.isArray(data?.results)
+    ? data.results
+    : Array.isArray(data)
+      ? data
+      : []
+
+  const count = Number(data?.count ?? results.length)
+  const pageSize = Number(data?.page_size ?? PAGE_SIZE)
+  const totalPages = Number(
+    data?.total_pages ?? Math.max(1, Math.ceil(count / Math.max(pageSize, 1)))
+  )
+
+  return {
+    results,
+    count,
+    page: Number(data?.page ?? fallbackPage),
+    page_size: pageSize,
+    total_pages: Math.max(1, totalPages),
+  }
 }
+
+
+// citim numarul de pagini din metadata, nu din lista curenta
+function pageCount(meta) {
+  return Math.max(1, Number(meta?.total_pages || 1))
+}
+
 
 // afisam un grup de statistici pentru un mod anume
 function ModeStatsGrid({ title, stats }) {
@@ -84,6 +115,7 @@ function ModeStatsGrid({ title, stats }) {
   )
 }
 
+
 // wrapper reutilizabil pentru cardurile cu grafice
 function ChartCard({ title, subtitle, children }) {
   return (
@@ -96,6 +128,7 @@ function ChartCard({ title, subtitle, children }) {
     </SectionCard>
   )
 }
+
 
 // afisam dashboard-ul principal pentru administrarea platformei
 export default function AdminDashboardPage() {
@@ -121,6 +154,11 @@ export default function AdminDashboardPage() {
   const [questionSetsPage, setQuestionSetsPage] = useState(1)
   const [attemptsPage, setAttemptsPage] = useState(1)
 
+  const [usersMeta, setUsersMeta] = useState(null)
+  const [documentsMeta, setDocumentsMeta] = useState(null)
+  const [questionSetsMeta, setQuestionSetsMeta] = useState(null)
+  const [attemptsMeta, setAttemptsMeta] = useState(null)
+
   // incarcam toate sursele principale de date pentru admin
   async function fetchAll() {
     try {
@@ -136,18 +174,30 @@ export default function AdminDashboardPage() {
       ] = await Promise.all([
         api.get('/adminpanel/overview/'),
         api.get('/adminpanel/ai-overview/'),
-        api.get('/adminpanel/users/'),
-        api.get('/adminpanel/documents/'),
-        api.get('/adminpanel/attempts/'),
-        api.get('/adminpanel/question-sets/'),
+        api.get('/adminpanel/users/', pageParams(usersPage)),
+        api.get('/adminpanel/documents/', pageParams(documentsPage)),
+        api.get('/adminpanel/attempts/', pageParams(attemptsPage)),
+        api.get('/adminpanel/question-sets/', pageParams(questionSetsPage)),
       ])
+
+      const usersPageData = normalizePaginatedResponse(usersResponse.data, usersPage)
+      const documentsPageData = normalizePaginatedResponse(documentsResponse.data, documentsPage)
+      const attemptsPageData = normalizePaginatedResponse(attemptsResponse.data, attemptsPage)
+      const questionSetsPageData = normalizePaginatedResponse(questionSetsResponse.data, questionSetsPage)
 
       setOverview(overviewResponse.data)
       setAiOverview(aiOverviewResponse.data)
-      setUsers(usersResponse.data.results || [])
-      setDocuments(documentsResponse.data.results || [])
-      setAttempts(attemptsResponse.data.results || [])
-      setQuestionSets(questionSetsResponse.data.results || [])
+
+      setUsers(usersPageData.results)
+      setDocuments(documentsPageData.results)
+      setAttempts(attemptsPageData.results)
+      setQuestionSets(questionSetsPageData.results)
+
+      setUsersMeta(usersPageData)
+      setDocumentsMeta(documentsPageData)
+      setAttemptsMeta(attemptsPageData)
+      setQuestionSetsMeta(questionSetsPageData)
+
       setError('')
     } catch {
       setError('Nu am putut încărca panoul de administrare.')
@@ -156,10 +206,68 @@ export default function AdminDashboardPage() {
     }
   }
 
+
+  // incarcam doar pagina curenta pentru lista de utilizatori
+  async function fetchUsers(page) {
+    try {
+      const response = await api.get('/adminpanel/users/', pageParams(page))
+      const pageData = normalizePaginatedResponse(response.data, page)
+
+      setUsers(pageData.results)
+      setUsersMeta(pageData)
+    } catch {
+      showToast('Nu am putut încărca utilizatorii.', 'error')
+    }
+  }
+
+
+  // incarcam doar pagina curenta pentru lista de documente
+  async function fetchDocuments(page) {
+    try {
+      const response = await api.get('/adminpanel/documents/', pageParams(page))
+      const pageData = normalizePaginatedResponse(response.data, page)
+
+      setDocuments(pageData.results)
+      setDocumentsMeta(pageData)
+    } catch {
+      showToast('Nu am putut încărca documentele.', 'error')
+    }
+  }
+
+
+  // incarcam doar pagina curenta pentru lista de question set-uri
+  async function fetchQuestionSets(page) {
+    try {
+      const response = await api.get('/adminpanel/question-sets/', pageParams(page))
+      const pageData = normalizePaginatedResponse(response.data, page)
+
+      setQuestionSets(pageData.results)
+      setQuestionSetsMeta(pageData)
+    } catch {
+      showToast('Nu am putut încărca seturile de întrebări.', 'error')
+    }
+  }
+
+
+  // incarcam doar pagina curenta pentru istoricul global de attempt-uri
+  async function fetchAttempts(page) {
+    try {
+      const response = await api.get('/adminpanel/attempts/', pageParams(page))
+      const pageData = normalizePaginatedResponse(response.data, page)
+
+      setAttempts(pageData.results)
+      setAttemptsMeta(pageData)
+    } catch {
+      showToast('Nu am putut încărca attempt-urile.', 'error')
+    }
+  }
+
+
   // incarcam dashboard-ul detaliat pentru un utilizator selectat
   async function fetchUserDetail(userId) {
     try {
       const response = await api.get(`/adminpanel/users/${userId}/`)
+
       setSelectedUserDetail(response.data)
       setSelectedUserId(userId)
     } catch {
@@ -167,9 +275,39 @@ export default function AdminDashboardPage() {
     }
   }
 
+
   useEffect(() => {
     fetchAll()
   }, [])
+
+
+  useEffect(() => {
+    if (!loading) {
+      fetchUsers(usersPage)
+    }
+  }, [usersPage])
+
+
+  useEffect(() => {
+    if (!loading) {
+      fetchDocuments(documentsPage)
+    }
+  }, [documentsPage])
+
+
+  useEffect(() => {
+    if (!loading) {
+      fetchQuestionSets(questionSetsPage)
+    }
+  }, [questionSetsPage])
+
+
+  useEffect(() => {
+    if (!loading) {
+      fetchAttempts(attemptsPage)
+    }
+  }, [attemptsPage])
+
 
   // activam sau dezactivam utilizatorul selectat
   async function handleToggleUserActive() {
@@ -207,6 +345,7 @@ export default function AdminDashboardPage() {
     }
   }
 
+
   // stergem documentul selectat
   async function handleDeleteDocument() {
     if (!selectedDocument) return
@@ -214,8 +353,8 @@ export default function AdminDashboardPage() {
     try {
       await api.delete(`/adminpanel/documents/${selectedDocument.id}/delete/`)
 
-      setDocuments((prev) => prev.filter((doc) => doc.id !== selectedDocument.id))
       setSelectedDocument(null)
+      await fetchDocuments(documentsPage)
 
       showToast('Documentul a fost șters.', 'success')
     } catch {
@@ -223,10 +362,11 @@ export default function AdminDashboardPage() {
     }
   }
 
-  const pagedUsers = useMemo(() => paginate(users, usersPage), [users, usersPage])
-  const pagedDocuments = useMemo(() => paginate(documents, documentsPage), [documents, documentsPage])
-  const pagedQuestionSets = useMemo(() => paginate(questionSets, questionSetsPage), [questionSets, questionSetsPage])
-  const pagedAttempts = useMemo(() => paginate(attempts, attemptsPage), [attempts, attemptsPage])
+  const pagedUsers = users
+  const pagedDocuments = documents
+  const pagedQuestionSets = questionSets
+  const pagedAttempts = attempts
+
 
   // distributia globala a raspunsurilor corecte si gresite
   const globalAnswerDistributionData = useMemo(() => {
@@ -237,6 +377,7 @@ export default function AdminDashboardPage() {
       { name: 'Greșite', value: Number(overview.wrong_answers || 0) },
     ]
   }, [overview])
+
 
   // comparatia globala dintre useri si AI pe moduri
   const globalScoreCompareData = useMemo(() => {
@@ -261,6 +402,7 @@ export default function AdminDashboardPage() {
     ]
   }, [overview, aiOverview])
 
+
   // volumul incercarilor pentru NLP si AI
   const globalModeVolumeData = useMemo(() => {
     if (!overview) return []
@@ -270,6 +412,7 @@ export default function AdminDashboardPage() {
       { name: 'AI attempts', value: Number(overview.ai_attempts || 0) },
     ]
   }, [overview])
+
 
   // distributia duelurilor pentru utilizatorul selectat
   const selectedUserDuelData = useMemo(() => {
@@ -290,6 +433,7 @@ export default function AdminDashboardPage() {
       },
     ]
   }, [selectedUserDetail])
+
 
   // comparatia dintre utilizator si AI pentru utilizatorul selectat
   const selectedUserModeCompareData = useMemo(() => {
@@ -314,6 +458,7 @@ export default function AdminDashboardPage() {
     ]
   }, [selectedUserDetail])
 
+
   if (loading) {
     return (
       <PageContainer>
@@ -322,6 +467,7 @@ export default function AdminDashboardPage() {
     )
   }
 
+
   if (error) {
     return (
       <PageContainer>
@@ -329,6 +475,7 @@ export default function AdminDashboardPage() {
       </PageContainer>
     )
   }
+
 
   return (
     <PageContainer>
@@ -362,10 +509,13 @@ export default function AdminDashboardPage() {
 
       <div className="space-y-6">
         <div className="rounded-[30px] border border-brand-100 bg-linear-to-r from-brand-50 via-violet-50 to-white p-6 shadow-sm">
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
-            Admin Control Panel
+          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-brand-600">
+            Admin
+          </p>
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
+            Control Panel
           </h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
             Statistici globale, comparații NLP vs AI și accent puternic pe duelul dintre utilizatori și solverul AI.
           </p>
         </div>
@@ -486,8 +636,8 @@ export default function AdminDashboardPage() {
                     isSelected
                       ? 'border-brand-300 bg-brand-50/70 shadow-sm'
                       : isInactive
-                      ? 'border-rose-200 bg-rose-50/60'
-                      : 'border-slate-200 bg-white'
+                        ? 'border-rose-200 bg-rose-50/60'
+                        : 'border-slate-200 bg-white'
                   }`}
                 >
                   <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -551,7 +701,7 @@ export default function AdminDashboardPage() {
 
           <Pagination
             page={usersPage}
-            totalPages={totalPages(users)}
+            totalPages={pageCount(usersMeta)}
             onChange={setUsersPage}
           />
         </SectionCard>
@@ -586,7 +736,10 @@ export default function AdminDashboardPage() {
                       paddingAngle={3}
                     >
                       {selectedUserDuelData.map((entry, index) => (
-                        <Cell key={`selected-duel-${index}`} fill={USER_DUEL_COLORS[index % USER_DUEL_COLORS.length]} />
+                        <Cell
+                          key={`selected-duel-${index}`}
+                          fill={USER_DUEL_COLORS[index % USER_DUEL_COLORS.length]}
+                        />
                       ))}
                     </Pie>
                     <Tooltip />
@@ -692,7 +845,7 @@ export default function AdminDashboardPage() {
 
           <Pagination
             page={documentsPage}
-            totalPages={totalPages(documents)}
+            totalPages={pageCount(documentsMeta)}
             onChange={setDocumentsPage}
           />
         </SectionCard>
@@ -744,7 +897,7 @@ export default function AdminDashboardPage() {
 
           <Pagination
             page={questionSetsPage}
-            totalPages={totalPages(questionSets)}
+            totalPages={pageCount(questionSetsMeta)}
             onChange={setQuestionSetsPage}
           />
         </SectionCard>
@@ -794,11 +947,13 @@ export default function AdminDashboardPage() {
                   <div>
                     <p className="text-xs uppercase tracking-wide text-slate-400">Timp / data</p>
                     <p className="mt-1 text-slate-700">{formatDateTime(attempt.completed_at)}</p>
+
                     {attempt.time_spent_seconds !== undefined && (
                       <p className="mt-1 text-xs text-slate-500">
                         User: {formatDuration(attempt.time_spent_seconds)}
                       </p>
                     )}
+
                     {attempt.ai_time_spent_seconds !== undefined && (
                       <p className="mt-1 text-xs text-slate-500">
                         AI: {formatDuration(attempt.ai_time_spent_seconds)}
@@ -812,7 +967,7 @@ export default function AdminDashboardPage() {
 
           <Pagination
             page={attemptsPage}
-            totalPages={totalPages(attempts)}
+            totalPages={pageCount(attemptsMeta)}
             onChange={setAttemptsPage}
           />
         </SectionCard>

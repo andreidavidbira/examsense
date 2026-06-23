@@ -12,6 +12,7 @@ Rolul fisierului:
 """
 
 from django.contrib.auth import get_user_model
+from django.core.paginator import EmptyPage, Paginator
 from django.db.models import Avg, Count, Max, Min
 
 from rest_framework.response import Response
@@ -43,7 +44,60 @@ from .serializers import (
 User = get_user_model()
 
 
+# citeste un parametru numeric pozitiv din query params
+# pentru admin limitam page_size, ca sa nu incarcam liste uriase intr-un singur request
+
+def get_positive_int_param(request, name, default_value, max_value=None):
+    try:
+        value = int(request.query_params.get(name, default_value))
+    except Exception:
+        value = default_value
+
+    if value < 1:
+        value = default_value
+
+    if max_value is not None and value > max_value:
+        value = max_value
+
+    return value
+
+
+# pagineaza un queryset direct in backend
+
+def paginate_queryset(request, queryset, default_page_size=10, max_page_size=50):
+    page = get_positive_int_param(request, "page", 1)
+    page_size = get_positive_int_param(
+        request,
+        "page_size",
+        default_page_size,
+        max_value=max_page_size,
+    )
+
+    paginator = Paginator(queryset, page_size)
+
+    try:
+        page_obj = paginator.page(page)
+    except EmptyPage:
+        page = paginator.num_pages if paginator.num_pages > 0 else 1
+        page_obj = paginator.page(page)
+
+    return page_obj, page, page_size, paginator.count, paginator.num_pages
+
+
+# construieste raspunsul standard pentru liste paginate
+
+def build_paginated_response(serializer, page, page_size, total_count, total_pages):
+    return Response({
+        "count": total_count,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": total_pages,
+        "results": serializer.data,
+    })
+
+
 # calculeaza numarul documentului raportat doar la istoricul utilizatorului curent
+
 def get_user_document_number(user_id, document_id):
     return (
         Document.objects
@@ -53,6 +107,7 @@ def get_user_document_number(user_id, document_id):
 
 
 # calculeaza numarul attemptului raportat doar la istoricul utilizatorului curent
+
 def get_user_attempt_number(user_id, attempt_id):
     return (
         QuizAttempt.objects
@@ -62,6 +117,7 @@ def get_user_attempt_number(user_id, attempt_id):
 
 
 # construieste statisticile de baza pentru un set de attempturi ale utilizatorilor
+
 def build_attempt_stats(attempts_qs):
     average_score = attempts_qs.aggregate(avg=Avg("score"))["avg"] or 0
     best_score = attempts_qs.aggregate(best=Max("score"))["best"] or 0
@@ -82,6 +138,7 @@ def build_attempt_stats(attempts_qs):
 
 
 # construieste statisticile pentru solverul AI pe baza attempturilor AI
+
 def build_ai_attempt_stats(ai_attempts_qs):
     average_score = ai_attempts_qs.aggregate(avg=Avg("score"))["avg"] or 0
     best_score = ai_attempts_qs.aggregate(best=Max("score"))["best"] or 0
@@ -102,6 +159,7 @@ def build_ai_attempt_stats(ai_attempts_qs):
 
 
 # compara performanta utilizatorilor cu performanta solverului AI
+
 def build_user_vs_ai_stats(attempts_qs):
     ai_attempts_qs = AIQuizAttempt.objects.filter(quiz_attempt__in=attempts_qs)
 
@@ -131,6 +189,7 @@ def build_user_vs_ai_stats(attempts_qs):
 
 
 # intoarce conceptele la care un utilizator a gresit cel mai des
+
 def build_most_wrong_concepts_for_user(user, limit=10):
     wrong_answers = (
         QuizAnswer.objects
@@ -160,6 +219,7 @@ def build_most_wrong_concepts_for_user(user, limit=10):
 
 
 # construieste toate datele necesare pentru dashboardul complet al unui utilizator
+
 def build_user_dashboard_data(user):
     all_attempts = QuizAttempt.objects.filter(user=user).select_related(
         "document",
@@ -299,12 +359,14 @@ class AdminAiOverviewView(APIView):
 class AdminUsersListView(APIView):
     permission_classes = [IsAdminPanelUser]
 
-    # construieste lista utilizatorilor pentru panoul de administrare
+    # construieste lista utilizatorilor pentru panoul de administrare, paginata in backend
     def get(self, request):
         users = User.objects.all().order_by("-date_joined")
+        page_obj, page, page_size, total_count, total_pages = paginate_queryset(request, users, default_page_size=5)
+
         results = []
 
-        for user in users:
+        for user in page_obj.object_list:
             all_attempts = QuizAttempt.objects.filter(user=user)
             avg_score = all_attempts.aggregate(avg=Avg("score"))["avg"] or 0
 
@@ -332,11 +394,7 @@ class AdminUsersListView(APIView):
             })
 
         serializer = AdminUserSerializer(results, many=True)
-
-        return Response({
-            "count": len(serializer.data),
-            "results": serializer.data,
-        })
+        return build_paginated_response(serializer, page, page_size, total_count, total_pages)
 
 
 class AdminUserDetailView(APIView):
@@ -360,7 +418,7 @@ class AdminUserDetailView(APIView):
 class AdminDocumentsListView(APIView):
     permission_classes = [IsAdminPanelUser]
 
-    # intoarce lista documentelor existente in platforma
+    # intoarce lista documentelor existente in platforma, paginata in backend
     def get(self, request):
         documents = (
             Document.objects
@@ -368,9 +426,10 @@ class AdminDocumentsListView(APIView):
             .order_by("-uploaded_at")
         )
 
+        page_obj, page, page_size, total_count, total_pages = paginate_queryset(request, documents, default_page_size=5)
         results = []
 
-        for document in documents:
+        for document in page_obj.object_list:
             results.append({
                 "id": document.id,
                 "username": document.user.username,
@@ -393,17 +452,13 @@ class AdminDocumentsListView(APIView):
             })
 
         serializer = AdminDocumentSerializer(results, many=True)
-
-        return Response({
-            "count": len(serializer.data),
-            "results": serializer.data,
-        })
+        return build_paginated_response(serializer, page, page_size, total_count, total_pages)
 
 
 class AdminQuestionSetsListView(APIView):
     permission_classes = [IsAdminPanelUser]
 
-    # intoarce toate seturile de intrebari generate in platforma
+    # intoarce toate seturile de intrebari generate in platforma, paginat in backend
     def get(self, request):
         question_sets = (
             QuestionSet.objects
@@ -411,9 +466,10 @@ class AdminQuestionSetsListView(APIView):
             .order_by("-created_at")
         )
 
+        page_obj, page, page_size, total_count, total_pages = paginate_queryset(request, question_sets, default_page_size=5)
         results = []
 
-        for question_set in question_sets:
+        for question_set in page_obj.object_list:
             results.append({
                 "id": question_set.id,
                 "document_id": question_set.document_id,
@@ -426,27 +482,24 @@ class AdminQuestionSetsListView(APIView):
             })
 
         serializer = AdminQuestionSetSerializer(results, many=True)
-
-        return Response({
-            "count": len(serializer.data),
-            "results": serializer.data,
-        })
+        return build_paginated_response(serializer, page, page_size, total_count, total_pages)
 
 
 class AdminAttemptsListView(APIView):
     permission_classes = [IsAdminPanelUser]
 
-    # intoarce istoricul global al attempturilor utilizatorilor
+    # intoarce istoricul global al attempturilor utilizatorilor, paginat in backend
     def get(self, request):
         attempts = (
             QuizAttempt.objects
-            .select_related("user", "document", "question_set")
+            .select_related("user", "document", "question_set", "ai_attempt")
             .order_by("-completed_at")
         )
 
+        page_obj, page, page_size, total_count, total_pages = paginate_queryset(request, attempts, default_page_size=5)
         results = []
 
-        for attempt in attempts:
+        for attempt in page_obj.object_list:
             ai_attempt = getattr(attempt, "ai_attempt", None)
 
             results.append({
@@ -468,11 +521,7 @@ class AdminAttemptsListView(APIView):
             })
 
         serializer = AdminAttemptSerializer(results, many=True)
-
-        return Response({
-            "count": len(serializer.data),
-            "results": serializer.data,
-        })
+        return build_paginated_response(serializer, page, page_size, total_count, total_pages)
 
 
 class AdminToggleUserActiveView(APIView):

@@ -20,34 +20,41 @@ import PageContainer from '../../components/common/PageContainer'
 import Pagination from '../../components/common/Pagination'
 import SectionCard from '../../components/common/SectionCard'
 import SkeletonCard from '../../components/common/SkeletonCard'
-import useClientPagination from '../../hooks/useClientPagination'
 import usePageTitle from '../../hooks/usePageTitle'
 import { primaryButtonClass } from '../../utils/buttonClasses'
 import { formatDateTime } from '../../utils/dateFormat'
 import { getDisplayFileName } from '../../utils/fileHelpers'
+
+const PAGE_SIZE = 10
 
 // afisam lista documentelor utilizatorului curent
 export default function DocumentsPage() {
   usePageTitle('Documentele mele')
 
   const [documents, setDocuments] = useState([])
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  // impartim lista de documente in pagini de maximum 10 elemente
-  const {
-    page,
-    totalPages,
-    paginatedItems: paginatedDocuments,
-    setPage,
-  } = useClientPagination(documents, 10)
-
   useEffect(() => {
-    // incarcam toate documentele utilizatorului curent
+    // incarcam doar pagina curenta, nu toate documentele utilizatorului
     async function fetchDocuments() {
       try {
-        const response = await api.get('/documents/')
-        setDocuments(response.data)
+        setLoading(true)
+        setError('')
+
+        const response = await api.get('/documents/', {
+          params: {
+            page,
+            page_size: PAGE_SIZE,
+          },
+        })
+
+        setDocuments(response.data.results || [])
+        setTotalPages(response.data.total_pages || 1)
+        setTotalCount(response.data.count || 0)
       } catch {
         setError('Nu am putut încărca documentele.')
       } finally {
@@ -56,7 +63,7 @@ export default function DocumentsPage() {
     }
 
     fetchDocuments()
-  }, [])
+  }, [page])
 
   return (
     <PageContainer>
@@ -81,7 +88,7 @@ export default function DocumentsPage() {
           </div>
         ) : error ? (
           <ErrorAlert message={error} />
-        ) : documents.length === 0 ? (
+        ) : totalCount === 0 ? (
           <EmptyState
             title="Nu există documente"
             description="Încarcă primul document pentru a genera definiții și întrebări."
@@ -89,7 +96,7 @@ export default function DocumentsPage() {
         ) : (
           <>
             <div className="grid gap-4 lg:grid-cols-2">
-              {paginatedDocuments.map((doc) => (
+              {documents.map((doc) => (
                 <Link
                   key={doc.id}
                   to={`/documents/${doc.id}`}

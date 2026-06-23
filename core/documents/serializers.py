@@ -75,6 +75,11 @@ class QuestionSetSerializer(serializers.ModelSerializer):
         ]
 
     def get_questions_count(self, obj):
+        annotated_value = getattr(obj, "questions_count", None)
+
+        if annotated_value is not None:
+            return annotated_value
+
         return obj.questions.count()
 
 
@@ -123,6 +128,21 @@ class AIQuizAttemptSerializer(serializers.ModelSerializer):
         ]
 
 
+# serializer simplu pentru attemptul AI din lista de istoric
+# nu includem raspunsurile, ca lista sa ramana rapida
+class AIQuizAttemptListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AIQuizAttempt
+        fields = [
+            "id",
+            "model_name",
+            "score",
+            "total_questions",
+            "time_spent_seconds",
+            "completed_at",
+        ]
+
+
 # serializer complet pentru un attempt al utilizatorului, inclusiv date despre AI
 class QuizAttemptSerializer(serializers.ModelSerializer):
     document_file = serializers.SerializerMethodField()
@@ -157,6 +177,11 @@ class QuizAttemptSerializer(serializers.ModelSerializer):
         return None
 
     def get_user_document_number(self, obj):
+        annotated_value = getattr(obj, "user_document_number", None)
+
+        if annotated_value is not None:
+            return annotated_value
+
         if not obj.document:
             return None
 
@@ -167,6 +192,71 @@ class QuizAttemptSerializer(serializers.ModelSerializer):
         )
 
     def get_user_attempt_number(self, obj):
+        annotated_value = getattr(obj, "user_attempt_number", None)
+
+        if annotated_value is not None:
+            return annotated_value
+
+        return (
+            QuizAttempt.objects
+            .filter(user=obj.user, id__lte=obj.id)
+            .count()
+        )
+
+
+# serializer rapid pentru lista de istoric quiz
+# nu include answers si nici answers AI, deoarece acestea se incarca doar in pagina de detalii
+class QuizAttemptListSerializer(serializers.ModelSerializer):
+    document_file = serializers.SerializerMethodField()
+    user_document_number = serializers.SerializerMethodField()
+    user_attempt_number = serializers.SerializerMethodField()
+    generation_mode = serializers.CharField(source="question_set.generation_mode", read_only=True)
+    question_set_id = serializers.IntegerField(source="question_set.id", read_only=True)
+    ai_attempt = AIQuizAttemptListSerializer(read_only=True)
+
+    class Meta:
+        model = QuizAttempt
+        fields = [
+            "id",
+            "question_set_id",
+            "generation_mode",
+            "user_attempt_number",
+            "document",
+            "document_file",
+            "user_document_number",
+            "score",
+            "total_questions",
+            "time_spent_seconds",
+            "completed_at",
+            "ai_attempt",
+        ]
+
+    def get_document_file(self, obj):
+        if obj.document and obj.document.file:
+            return obj.document.file.url
+        return None
+
+    def get_user_document_number(self, obj):
+        annotated_value = getattr(obj, "user_document_number", None)
+
+        if annotated_value is not None:
+            return annotated_value
+
+        if not obj.document:
+            return None
+
+        return (
+            Document.objects
+            .filter(user=obj.document.user, id__lte=obj.document.id)
+            .count()
+        )
+
+    def get_user_attempt_number(self, obj):
+        annotated_value = getattr(obj, "user_attempt_number", None)
+
+        if annotated_value is not None:
+            return annotated_value
+
         return (
             QuizAttempt.objects
             .filter(user=obj.user, id__lte=obj.id)
@@ -188,6 +278,11 @@ class DocumentListSerializer(serializers.ModelSerializer):
         ]
 
     def get_user_document_number(self, obj):
+        annotated_value = getattr(obj, "user_document_number", None)
+
+        if annotated_value is not None:
+            return annotated_value
+
         return (
             Document.objects
             .filter(user=obj.user, id__lte=obj.id)
@@ -218,6 +313,11 @@ class DocumentDetailSerializer(serializers.ModelSerializer):
         ]
 
     def get_user_document_number(self, obj):
+        annotated_value = getattr(obj, "user_document_number", None)
+
+        if annotated_value is not None:
+            return annotated_value
+
         return (
             Document.objects
             .filter(user=obj.user, id__lte=obj.id)

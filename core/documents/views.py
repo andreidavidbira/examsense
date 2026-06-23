@@ -15,6 +15,7 @@ Rolul fisierului:
 import time
 
 from django.conf import settings
+from django.core.paginator import EmptyPage, Paginator
 from django.db.models import Avg, Count, Max, Min
 from django.shortcuts import get_object_or_404
 
@@ -43,6 +44,7 @@ from .serializers import (
     ExtractedDefinitionSerializer,
     GeneratedQuestionSerializer,
     QuestionSetSerializer,
+    QuizAttemptListSerializer,
     QuizAttemptSerializer,
     QuizStatsResponseSerializer,
     SubmitQuizInputSerializer,
@@ -51,7 +53,60 @@ from .serializers import (
 from .utils import extract_text_from_docx, extract_text_from_pdf
 
 
+# citeste un parametru numeric pozitiv din query params
+# il folosim pentru page si page_size, ca sa avem paginare reala in backend
+
+def get_positive_int_param(request, name, default_value, max_value=None):
+    try:
+        value = int(request.query_params.get(name, default_value))
+    except Exception:
+        value = default_value
+
+    if value < 1:
+        value = default_value
+
+    if max_value is not None and value > max_value:
+        value = max_value
+
+    return value
+
+
+# pagineaza un queryset si intoarce pagina ceruta, fara sa incarce toate rezultatele in memorie
+
+def paginate_queryset(request, queryset, default_page_size=10, max_page_size=50):
+    page = get_positive_int_param(request, "page", 1)
+    page_size = get_positive_int_param(
+        request,
+        "page_size",
+        default_page_size,
+        max_value=max_page_size,
+    )
+
+    paginator = Paginator(queryset, page_size)
+
+    try:
+        page_obj = paginator.page(page)
+    except EmptyPage:
+        page = paginator.num_pages if paginator.num_pages > 0 else 1
+        page_obj = paginator.page(page)
+
+    return page_obj, page, page_size, paginator.count, paginator.num_pages
+
+
+# construieste un raspuns standard pentru liste paginate
+
+def build_paginated_response(serializer, page, page_size, total_count, total_pages):
+    return Response({
+        "count": total_count,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": total_pages,
+        "results": serializer.data,
+    })
+
+
 # verifica extensia, content type-ul si dimensiunea fisierului incarcat
+
 def validate_uploaded_file(file):
     allowed_extensions = [".pdf", ".docx"]
     allowed_content_types = [
@@ -74,6 +129,7 @@ def validate_uploaded_file(file):
 
 
 # normalizeaza modul de generare primit din frontend
+
 def normalize_generation_mode(value):
     value = str(value or "nlp").strip().lower()
 
@@ -84,6 +140,7 @@ def normalize_generation_mode(value):
 
 
 # calculeaza indexul documentului in istoricul utilizatorului curent
+
 def get_user_document_number(user, document_id):
     return (
         Document.objects
@@ -93,6 +150,7 @@ def get_user_document_number(user, document_id):
 
 
 # calculeaza indexul attemptului in istoricul utilizatorului curent
+
 def get_user_attempt_number(user, attempt_id):
     return (
         QuizAttempt.objects
@@ -102,6 +160,7 @@ def get_user_attempt_number(user, attempt_id):
 
 
 # genereaza si salveaza definitiile NLP doar daca nu exista deja pentru document
+
 def ensure_nlp_definitions(document):
     existing_definitions = list(
         document.definitions
@@ -143,6 +202,7 @@ def ensure_nlp_definitions(document):
 
 
 # salveaza in baza de date definitiile generate de AI pentru documentul curent
+
 def save_ai_definitions(document, definitions):
     objects = []
 
@@ -161,6 +221,7 @@ def save_ai_definitions(document, definitions):
 
 
 # construieste intrebarile NLP pornind de la definitiile deja salvate pentru document
+
 def build_questions_for_document_nlp(document, question_set, difficulty="medium", max_q=10):
     start_time = time.perf_counter()
 
@@ -248,6 +309,7 @@ def build_questions_for_document_nlp(document, question_set, difficulty="medium"
 
 
 # construieste intrebarile AI pornind direct din continutul documentului
+
 def build_questions_for_document_ai(document, question_set, difficulty="medium", max_q=10):
     text = document.extracted_text or ""
 
@@ -296,6 +358,7 @@ def build_questions_for_document_ai(document, question_set, difficulty="medium",
 
 
 # creeaza un question set nou si genereaza intrebarile in functie de modul ales
+
 def create_question_set_for_document(document, generation_mode="nlp", difficulty="medium", max_q=10):
     generation_mode = normalize_generation_mode(generation_mode)
 
@@ -387,7 +450,8 @@ class UploadDocumentView(APIView):
             extracted_text=text,
         )
 
-
+        # nu mai rulam NLP separat aici; create_question_set_for_document decide corect fluxul
+        # pentru AI nu se face ensure_nlp_definitions, deci uploadul AI devine mai rapid
         try:
             question_set, saved_questions = create_question_set_for_document(
                 document=document,
@@ -411,12 +475,12 @@ class UploadDocumentView(APIView):
             "latest_question_set_id": question_set.id,
             "definitions": ExtractedDefinitionSerializer(
                 document.definitions.all().order_by("id"),
-                many=True
+                many=True,
             ).data,
             "questions": GeneratedQuestionSerializer(saved_questions, many=True).data,
             "question_sets": QuestionSetSerializer(
                 document.question_sets.all().order_by("-created_at"),
-                many=True
+                many=True,
             ).data,
         }
 
@@ -464,11 +528,23 @@ class RegenerateQuestionsView(APIView):
 class DocumentListView(APIView):
     permission_classes = [IsAuthenticated]
 
-    # intoarce lista documentelor utilizatorului autentificat
+    # intoarce lista documentelor utilizatorului autentificat, paginata direct in backend
     def get(self, request):
-        documents = Document.objects.filter(user=request.user).order_by("-uploaded_at")
-        serializer = DocumentListSerializer(documents, many=True)
-        return Response(serializer.data)
+        documents = (
+            Document.objects
+            .filter(user=request.user)
+            .order_by("-uploaded_at")
+        )
+
+        page_obj, page, page_size, total_count, total_pages = paginate_queryset(
+            request,
+            documents,
+            default_page_size=10,
+            max_page_size=50,
+        )
+
+        serializer = DocumentListSerializer(page_obj.object_list, many=True)
+        return build_paginated_response(serializer, page, page_size, total_count, total_pages)
 
 
 class DocumentDetailView(APIView):
@@ -562,8 +638,8 @@ class SubmitQuizView(APIView):
 
         score = 0
         results = []
-
         question_map = {question.id: question for question in questions}
+        answer_objects = []
 
         for answer_data in answers:
             question_id = answer_data["question_id"]
@@ -586,12 +662,12 @@ class SubmitQuizView(APIView):
             if is_correct:
                 score += 1
 
-            QuizAnswer.objects.create(
+            answer_objects.append(QuizAnswer(
                 attempt=attempt,
                 question=question,
                 selected_answer=str(selected_answer),
                 is_correct=is_correct,
-            )
+            ))
 
             results.append({
                 "question_id": question.id,
@@ -600,6 +676,8 @@ class SubmitQuizView(APIView):
                 "correct_answer": correct_answer,
                 "is_correct": is_correct,
             })
+
+        QuizAnswer.objects.bulk_create(answer_objects)
 
         attempt.score = score
         attempt.total_questions = questions.count()
@@ -624,6 +702,8 @@ class SubmitQuizView(APIView):
                 time_spent_seconds=ai_time_spent_seconds,
             )
 
+            ai_answer_objects = []
+
             for ai_answer_data in ai_answers_payload:
                 question_id = ai_answer_data.get("question_id")
                 selected_answer = ai_answer_data.get("selected_answer")
@@ -645,12 +725,12 @@ class SubmitQuizView(APIView):
                 if is_correct:
                     ai_score += 1
 
-                AIQuizAnswer.objects.create(
+                ai_answer_objects.append(AIQuizAnswer(
                     ai_attempt=ai_attempt,
                     question=question,
                     selected_answer=str(selected_answer),
                     is_correct=is_correct,
-                )
+                ))
 
                 ai_results.append({
                     "question_id": question.id,
@@ -659,6 +739,8 @@ class SubmitQuizView(APIView):
                     "correct_answer": correct_answer,
                     "is_correct": is_correct,
                 })
+
+            AIQuizAnswer.objects.bulk_create(ai_answer_objects)
 
             ai_attempt.score = ai_score
             ai_attempt.total_questions = questions.count()
@@ -672,16 +754,8 @@ class SubmitQuizView(APIView):
             ai_model_name = "unavailable"
             ai_time_spent_seconds = 0
 
-        user_document_number = (
-            Document.objects
-            .filter(user=request.user, id__lte=document.id)
-            .count()
-        )
-        user_attempt_number = (
-            QuizAttempt.objects
-            .filter(user=request.user, id__lte=attempt.id)
-            .count()
-        )
+        user_document_number = get_user_document_number(request.user, document.id)
+        user_attempt_number = get_user_attempt_number(request.user, attempt.id)
 
         response_data = {
             "attempt_id": attempt.id,
@@ -708,15 +782,24 @@ class SubmitQuizView(APIView):
 class QuizHistoryView(APIView):
     permission_classes = [IsAuthenticated]
 
-    # intoarce istoricul quiz-urilor rezolvate de utilizator
+    # intoarce istoricul quiz-urilor rezolvate de utilizator, paginat in backend
     def get(self, request):
-        attempts = QuizAttempt.objects.filter(user=request.user).order_by("-completed_at")
-        serializer = QuizAttemptSerializer(attempts, many=True)
+        attempts = (
+            QuizAttempt.objects
+            .filter(user=request.user)
+            .select_related("document", "question_set", "ai_attempt")
+            .order_by("-completed_at")
+        )
 
-        return Response({
-            "count": attempts.count(),
-            "results": serializer.data,
-        })
+        page_obj, page, page_size, total_count, total_pages = paginate_queryset(
+            request,
+            attempts,
+            default_page_size=10,
+            max_page_size=50,
+        )
+
+        serializer = QuizAttemptListSerializer(page_obj.object_list, many=True)
+        return build_paginated_response(serializer, page, page_size, total_count, total_pages)
 
 
 class QuizAttemptDetailView(APIView):
@@ -725,7 +808,11 @@ class QuizAttemptDetailView(APIView):
     # intoarce detaliile complete pentru un attempt din istoric
     def get(self, request, attempt_id):
         attempt = get_object_or_404(
-            QuizAttempt.objects.prefetch_related(
+            QuizAttempt.objects.select_related(
+                "document",
+                "question_set",
+                "ai_attempt",
+            ).prefetch_related(
                 "answers__question",
                 "ai_attempt__answers__question",
             ),
@@ -738,6 +825,7 @@ class QuizAttemptDetailView(APIView):
 
 
 # calculeaza statistici pe overall, nlp si ai pentru dashboardul quiz-urilor
+
 def build_mode_stats(attempts_queryset):
     answers_queryset = QuizAnswer.objects.filter(attempt__in=attempts_queryset)
     ai_attempts_queryset = AIQuizAttempt.objects.filter(quiz_attempt__in=attempts_queryset)
