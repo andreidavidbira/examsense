@@ -73,6 +73,16 @@ def validate_uploaded_file(file):
         raise ValueError("File is too large.")
 
 
+# normalizeaza modul de generare primit din frontend
+def normalize_generation_mode(value):
+    value = str(value or "nlp").strip().lower()
+
+    if value not in ["nlp", "ai"]:
+        return "nlp"
+
+    return value
+
+
 # calculeaza indexul documentului in istoricul utilizatorului curent
 def get_user_document_number(user, document_id):
     return (
@@ -93,21 +103,25 @@ def get_user_attempt_number(user, attempt_id):
 
 # genereaza si salveaza definitiile NLP doar daca nu exista deja pentru document
 def ensure_nlp_definitions(document):
-    existing = document.definitions.filter(generation_mode="nlp").exists()
+    existing_definitions = list(
+        document.definitions
+        .filter(generation_mode="nlp")
+        .order_by("id")
+    )
 
-    if existing:
-        return list(document.definitions.filter(generation_mode="nlp").order_by("id"))
-    
+    if existing_definitions:
+        return existing_definitions
+
     start_time = time.perf_counter()
 
     text = document.extracted_text or ""
     result = process_text(text)
     definitions = result.get("definitions", [])
 
-    created = []
+    objects = []
 
     for definition in definitions:
-        obj = ExtractedDefinition.objects.create(
+        objects.append(ExtractedDefinition(
             document=document,
             concept=definition.get("concept", ""),
             definition=definition.get("definition", ""),
@@ -115,9 +129,10 @@ def ensure_nlp_definitions(document):
             language=definition.get("language", ""),
             sentence=definition.get("sentence", ""),
             generation_mode="nlp",
-        )
-        created.append(obj)
-    
+        ))
+
+    created = list(ExtractedDefinition.objects.bulk_create(objects))
+
     duration = time.perf_counter() - start_time
     print(
         f"[NLP DEFINITION EXTRACTION] document_id={document.id}, "
@@ -129,10 +144,10 @@ def ensure_nlp_definitions(document):
 
 # salveaza in baza de date definitiile generate de AI pentru documentul curent
 def save_ai_definitions(document, definitions):
-    saved = []
+    objects = []
 
     for definition in definitions:
-        obj = ExtractedDefinition.objects.create(
+        objects.append(ExtractedDefinition(
             document=document,
             concept=definition.get("concept", ""),
             definition=definition.get("definition", ""),
@@ -140,10 +155,9 @@ def save_ai_definitions(document, definitions):
             language=definition.get("language", ""),
             sentence=definition.get("sentence", ""),
             generation_mode="ai",
-        )
-        saved.append(obj)
+        ))
 
-    return saved
+    return list(ExtractedDefinition.objects.bulk_create(objects))
 
 
 # construieste intrebarile NLP pornind de la definitiile deja salvate pentru document
@@ -173,52 +187,42 @@ def build_questions_for_document_nlp(document, question_set, difficulty="medium"
         max_questions=max_q,
     )
 
-    definition_map = {}
+    definition_by_answer = {}
+    definition_by_concept = {}
 
     for db_definition in db_definitions:
-        key = (
-            db_definition.concept,
+        answer_key = (
             db_definition.definition,
             db_definition.language,
         )
-        definition_map[key] = db_definition
+        concept_key = (
+            db_definition.concept.strip().lower(),
+            db_definition.language,
+        )
+        definition_by_answer[answer_key] = db_definition
+        definition_by_concept[concept_key] = db_definition
 
-    saved_questions = []
+    question_objects = []
 
     for question_data in questions:
         source_definition_obj = None
 
         # incercam sa legam fiecare intrebare de definitia ei sursa
         if question_data.get("type") == "mcq":
-            for definition in definitions:
-                if (
-                    definition.get("definition") == question_data.get("correct_answer")
-                    and definition.get("language") == question_data.get("language")
-                ):
-                    key = (
-                        definition.get("concept"),
-                        definition.get("definition"),
-                        definition.get("language"),
-                    )
-                    source_definition_obj = definition_map.get(key)
-                    break
+            key = (
+                question_data.get("correct_answer"),
+                question_data.get("language"),
+            )
+            source_definition_obj = definition_by_answer.get(key)
 
         elif question_data.get("type") == "mcq_reverse":
-            for definition in definitions:
-                if (
-                    definition.get("concept", "").lower()
-                    == str(question_data.get("correct_answer", "")).lower()
-                    and definition.get("language") == question_data.get("language")
-                ):
-                    key = (
-                        definition.get("concept"),
-                        definition.get("definition"),
-                        definition.get("language"),
-                    )
-                    source_definition_obj = definition_map.get(key)
-                    break
+            key = (
+                str(question_data.get("correct_answer", "")).strip().lower(),
+                question_data.get("language"),
+            )
+            source_definition_obj = definition_by_concept.get(key)
 
-        saved_question = GeneratedQuestion.objects.create(
+        question_objects.append(GeneratedQuestion(
             document=document,
             question_set=question_set,
             source_definition=source_definition_obj,
@@ -228,17 +232,17 @@ def build_questions_for_document_nlp(document, question_set, difficulty="medium"
             question_text=question_data.get("question"),
             options=question_data.get("options", None),
             correct_answer=str(question_data.get("correct_answer")),
-        )
-        saved_questions.append(saved_question)
-    
-        duration = time.perf_counter() - start_time
+        ))
 
-        print(
+    saved_questions = list(GeneratedQuestion.objects.bulk_create(question_objects))
+
+    duration = time.perf_counter() - start_time
+    print(
         f"[NLP QUIZ GENERATION] document_id={document.id}, "
         f"difficulty={difficulty}, requested={max_q}, "
         f"definitions={len(definitions)}, generated={len(saved_questions)}, "
         f"duration={duration:.4f}s"
-        )  
+    )
 
     return saved_questions
 
@@ -266,7 +270,7 @@ def build_questions_for_document_ai(document, question_set, difficulty="medium",
         )
         definition_map[key] = db_definition
 
-    saved_questions = []
+    question_objects = []
 
     for question_data in questions:
         source_definition_obj = None
@@ -276,7 +280,7 @@ def build_questions_for_document_ai(document, question_set, difficulty="medium",
             language_key = question_data.get("language")
             source_definition_obj = definition_map.get((concept_key, language_key))
 
-        saved_question = GeneratedQuestion.objects.create(
+        question_objects.append(GeneratedQuestion(
             document=document,
             question_set=question_set,
             source_definition=source_definition_obj,
@@ -286,14 +290,15 @@ def build_questions_for_document_ai(document, question_set, difficulty="medium",
             question_text=question_data.get("question"),
             options=question_data.get("options", None),
             correct_answer=str(question_data.get("correct_answer")),
-        )
-        saved_questions.append(saved_question)
+        ))
 
-    return saved_questions
+    return list(GeneratedQuestion.objects.bulk_create(question_objects))
 
 
 # creeaza un question set nou si genereaza intrebarile in functie de modul ales
 def create_question_set_for_document(document, generation_mode="nlp", difficulty="medium", max_q=10):
+    generation_mode = normalize_generation_mode(generation_mode)
+
     question_set = QuestionSet.objects.create(
         document=document,
         generation_mode=generation_mode,
@@ -341,16 +346,24 @@ class UploadDocumentView(APIView):
         if not (filename.endswith(".pdf") or filename.endswith(".docx")):
             return Response({"error": "Unsupported file type"}, status=400)
 
-        generation_mode = request.data.get("generation_mode", "nlp")
+        generation_mode = normalize_generation_mode(request.data.get("generation_mode", "nlp"))
         difficulty = request.data.get("difficulty", "medium")
         max_q = int(request.data.get("max_questions", 10))
 
         # extragem textul inainte sa salvam documentul in baza de date
         try:
+            extraction_start = time.perf_counter()
+
             if filename.endswith(".pdf"):
                 text = extract_text_from_pdf(file)
             else:
                 text = extract_text_from_docx(file)
+
+            extraction_duration = time.perf_counter() - extraction_start
+            print(
+                f"[TEXT EXTRACTION] filename={filename}, chars={len(text)}, "
+                f"duration={extraction_duration:.4f}s"
+            )
         except Exception as e:
             print("TEXT EXTRACTION ERROR:", repr(e))
             return Response({
@@ -374,14 +387,6 @@ class UploadDocumentView(APIView):
             extracted_text=text,
         )
 
-        try:
-            ensure_nlp_definitions(document)
-        except Exception as e:
-            print("NLP PROCESSING ERROR:", repr(e))
-            return Response({
-                "error": "Eroare la procesarea NLP a textului",
-                "details": str(e),
-            }, status=500)
 
         try:
             question_set, saved_questions = create_question_set_for_document(
@@ -429,7 +434,7 @@ class RegenerateQuestionsView(APIView):
             user=request.user,
         )
 
-        generation_mode = request.data.get("generation_mode", "nlp")
+        generation_mode = normalize_generation_mode(request.data.get("generation_mode", "nlp"))
         difficulty = request.data.get("difficulty", "medium")
         max_q = int(request.data.get("max_questions", 10))
 

@@ -72,9 +72,8 @@ def _safe_json_loads(raw_text):
     try:
         return json.loads(json_text)
     except json.JSONDecodeError as e:
+        # nu afisam continutul raspunsului AI in consola, ca sa nu aglomeram logurile
         print("AI JSON PARSE ERROR:", repr(e))
-        print("AI JSON TEXT THAT FAILED:")
-        print(json_text)
         raise ValueError("AI returned invalid JSON.")
 
 
@@ -269,18 +268,14 @@ def _request_quiz_bundle_once(trimmed_text, difficulty, requested_questions):
         max_questions=requested_questions,
     )
 
+    start_time = time.perf_counter()
+
     response = client.responses.create(
         model=settings.OPENAI_QUESTION_MODEL,
         input=prompt,
     )
 
-    print("AI GENERATION RAW RESPONSE:")
-    print(response.output_text)
-
     payload = _safe_json_loads(response.output_text)
-
-    print("AI GENERATION PARSED PAYLOAD:")
-    print(payload)
 
     if not isinstance(payload, dict):
         raise ValueError("AI response for quiz generation must be a JSON object.")
@@ -314,6 +309,14 @@ def _request_quiz_bundle_once(trimmed_text, difficulty, requested_questions):
 
     definitions = _dedupe_definitions(definitions)
     questions = _dedupe_questions(questions)
+
+    duration = time.perf_counter() - start_time
+    print(
+        f"[AI QUIZ REQUEST] model={settings.OPENAI_QUESTION_MODEL}, "
+        f"difficulty={difficulty}, requested={requested_questions}, "
+        f"definitions={len(definitions)}, questions={len(questions)}, "
+        f"duration={duration:.4f}s"
+    )
 
     return {
         "definitions": definitions,
@@ -349,6 +352,7 @@ def generate_quiz_bundle_with_ai(text, difficulty="medium", max_questions=10):
 
     all_definitions = list(first_pass["definitions"])
     all_questions = list(first_pass["questions"])
+    passes = 1
 
     # daca nu avem suficiente intrebari valide, mai facem o incercare
     if len(all_questions) < max_questions:
@@ -362,6 +366,7 @@ def generate_quiz_bundle_with_ai(text, difficulty="medium", max_questions=10):
                 requested_questions=second_request_count,
             )
 
+            passes += 1
             all_definitions.extend(second_pass["definitions"])
             all_questions.extend(second_pass["questions"])
 
@@ -375,11 +380,12 @@ def generate_quiz_bundle_with_ai(text, difficulty="medium", max_questions=10):
 
     if not final_questions:
         raise ValueError("AI did not generate valid quiz questions.")
-    
+
     duration = time.perf_counter() - start_time
     print(
         f"[AI QUIZ GENERATION] difficulty={difficulty}, "
         f"requested={max_questions}, generated={len(final_questions)}, "
+        f"definitions={len(all_definitions)}, passes={passes}, "
         f"duration={duration:.4f}s"
     )
 
@@ -406,6 +412,8 @@ def solve_quiz_with_ai(question_objects):
         questions_payload=json.dumps(questions_payload, ensure_ascii=False)
     )
 
+    start_time = time.perf_counter()
+
     try:
         response = client.responses.create(
             model=settings.OPENAI_SOLVER_MODEL,
@@ -415,13 +423,7 @@ def solve_quiz_with_ai(question_objects):
         print("OPENAI SOLVER MODEL ERROR:", repr(e))
         raise
 
-    print("AI SOLVER RAW RESPONSE:")
-    print(response.output_text)
-
     payload = _safe_json_loads(response.output_text)
-
-    print("AI SOLVER PARSED PAYLOAD:")
-    print(payload)
 
     if not isinstance(payload, list):
         raise ValueError("AI solver response must be a JSON list.")
@@ -474,5 +476,12 @@ def solve_quiz_with_ai(question_objects):
             "question_id": question_id,
             "selected_answer": selected_answer,
         })
+
+    duration = time.perf_counter() - start_time
+    print(
+        f"[AI SOLVER REQUEST] model={settings.OPENAI_SOLVER_MODEL}, "
+        f"questions={len(question_objects)}, answers={len(normalized_answers)}, "
+        f"duration={duration:.4f}s"
+    )
 
     return normalized_answers

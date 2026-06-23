@@ -14,6 +14,7 @@ Rolul fisierului:
 
 import re
 import unicodedata
+from functools import lru_cache
 
 try:
     from langdetect import detect
@@ -32,6 +33,37 @@ from nlp.patterns import (
 
 
 WORD_CHARS = "A-Za-zĂÂÎȘȚăâîșț0-9_"
+
+# regex-uri compilate o singura data, ca sa nu reconstruim aceleasi expresii la fiecare propozitie
+_DEFINITION_SIGNAL_RE = re.compile(
+    rf"(?<![{WORD_CHARS}])(?:"
+    + "|".join(re.escape(pattern).replace(r"\ ", r"\s+") for pattern in sorted(ROMANIAN_PATTERNS + ENGLISH_PATTERNS, key=len, reverse=True))
+    + rf")(?![{WORD_CHARS}])",
+    flags=re.IGNORECASE,
+)
+_LABELED_SIGNAL_RE = re.compile(r"\b(definiție|definitie|definition)\b\s*[:\-–—]", flags=re.IGNORECASE)
+_METADATA_RE_LIST = [
+    re.compile(r"\bISBN(?:-1[03])?:?\s*[0-9Xx\- ]{8,}\b", flags=re.IGNORECASE),
+    re.compile(r"\bISSN:?\s*[0-9Xx\- ]{7,}\b", flags=re.IGNORECASE),
+    re.compile(r"\bdoi\s*[:/]\s*10\.\d+/.+", flags=re.IGNORECASE),
+    re.compile(r"\bpp\.?\s*\d+\s*[-–]\s*\d+\b", flags=re.IGNORECASE),
+    re.compile(r"\bvol\.?\s*\d+\b", flags=re.IGNORECASE),
+    re.compile(r"\b\d+(st|nd|rd|th)\s+edition\b", flags=re.IGNORECASE),
+]
+_CODE_PATTERN_LIST = [
+    re.compile(r"\b(for|while|if|else|return|procedure|function|begin|end)\b", flags=re.IGNORECASE),
+    re.compile(r"\b(pentru|daca|dacă|altfel|procedura|functie|funcție)\b", flags=re.IGNORECASE),
+    re.compile(r"^\d+\s*:\s*", flags=re.IGNORECASE),
+    re.compile(r"\b[A-Za-z_]\w*\s*←\s*", flags=re.IGNORECASE),
+    re.compile(r"\b[A-Za-z_]\w*\s*=\s*[^.]+$", flags=re.IGNORECASE),
+]
+_HEADING_VERB_RE = re.compile(
+    r"\b(este|sunt|reprezintă|reprezinta|înseamnă|inseamna|is|are|means|refers)\b",
+    flags=re.IGNORECASE,
+)
+_FIGURE_SPLIT_RE = re.compile(r"\s+(?:Figura|Fig\.|Tabelul|Table|Figure)\s+\d+", flags=re.IGNORECASE)
+_SECTION_SPLIT_RE = re.compile(r"\s+\d+(\.\d+)+\.?\s+")
+_ENDING_NOISE_RE = re.compile(r"\b(i\.e|e\.g|engl|ex)$", flags=re.IGNORECASE)
 
 ROMANIAN_FUNCTION_WORDS = {
     "este", "sunt", "prin", "pentru", "care", "în", "in", "se", "un", "o", "unei",
@@ -77,6 +109,7 @@ PROCEDURAL_VERBS_EN = {
 
 # detecteaza limba textului si o reduce la ro sau en
 
+@lru_cache(maxsize=4096)
 def detect_language(text):
     text_lower = f" {str(text).lower()} "
     tokens = re.findall(r"[a-zăâîșț]+", text_lower, flags=re.IGNORECASE)
@@ -120,6 +153,7 @@ def strip_diacritics(text):
 
 # construieste o cheie normalizata pentru comparatii si deduplicare
 
+@lru_cache(maxsize=10000)
 def normalize_key(text):
     text = strip_diacritics(str(text).lower())
     text = re.sub(r"[^a-z0-9_\-/ ]+", " ", text)
@@ -175,17 +209,8 @@ def is_metadata_like(text):
     if any(word in lower.split() for word in GENERIC_METADATA_WORDS):
         return True
 
-    patterns = [
-        r"\bISBN(?:-1[03])?:?\s*[0-9Xx\- ]{8,}\b",
-        r"\bISSN:?\s*[0-9Xx\- ]{7,}\b",
-        r"\bdoi\s*[:/]\s*10\.\d+/.+",
-        r"\bpp\.?\s*\d+\s*[-–]\s*\d+\b",
-        r"\bvol\.?\s*\d+\b",
-        r"\b\d+(st|nd|rd|th)\s+edition\b",
-    ]
-
-    for pattern in patterns:
-        if re.search(pattern, str(text), flags=re.IGNORECASE):
+    for pattern in _METADATA_RE_LIST:
+        if pattern.search(str(text)):
             return True
 
     return False
@@ -227,17 +252,9 @@ def is_formula_or_code_like(text):
         return True
 
     # structuri comune de pseudocod
-    code_patterns = [
-        r"\b(for|while|if|else|return|procedure|function|begin|end)\b",
-        r"\b(pentru|daca|dacă|altfel|procedura|functie|funcție)\b",
-        r"^\d+\s*:\s*",
-        r"\b[A-Za-z_]\w*\s*←\s*",
-        r"\b[A-Za-z_]\w*\s*=\s*[^.]+$",
-    ]
-
     matches = 0
-    for pattern in code_patterns:
-        if re.search(pattern, text, flags=re.IGNORECASE):
+    for pattern in _CODE_PATTERN_LIST:
+        if pattern.search(text):
             matches += 1
 
     if matches >= 2:
@@ -277,11 +294,7 @@ def is_heading_like(text):
     if len(words) <= 2:
         return True
 
-    has_definition_verb = re.search(
-        r"\b(este|sunt|reprezintă|reprezinta|înseamnă|inseamna|is|are|means|refers)\b",
-        text,
-        flags=re.IGNORECASE,
-    )
+    has_definition_verb = _HEADING_VERB_RE.search(text)
 
     if text.endswith(":") and len(words) <= 10 and not has_definition_verb:
         return True
@@ -293,6 +306,25 @@ def is_heading_like(text):
     return False
 
 
+# verifica rapid daca propozitia are un semnal definitoriu
+# acest pas evita validari scumpe pe fragmente care oricum nu pot produce definitii
+def has_definition_signal(sentence):
+    sentence = normalize_spaces(sentence)
+
+    if not sentence:
+        return False
+
+    if _LABELED_SIGNAL_RE.search(sentence):
+        return True
+
+    return bool(_DEFINITION_SIGNAL_RE.search(sentence))
+
+
+# alias folosit de services.py pentru compatibilitate si claritate
+def detect_sentence_language(sentence):
+    return detect_language(sentence)
+
+
 # filtreaza propozitiile care nu sunt potrivite pentru extractia definitiilor
 
 def is_valid_sentence(sentence):
@@ -302,6 +334,9 @@ def is_valid_sentence(sentence):
         return False
 
     if len(sentence.split()) < 3:
+        return False
+
+    if not has_definition_signal(sentence):
         return False
 
     if is_heading_like(sentence):
@@ -610,15 +645,15 @@ def clean_definition(text):
     text = normalize_spaces(text)
 
     # eliminam resturi de figuri/tabele atasate de definitie, regula generala pentru documente academice
-    text = re.split(r"\s+(?:Figura|Fig\.|Tabelul|Table|Figure)\s+\d+", text, maxsplit=1, flags=re.IGNORECASE)[0]
+    text = _FIGURE_SPLIT_RE.split(text, maxsplit=1)[0]
     text = normalize_spaces(text)
 
     # daca definitia contine o noua eticheta de sectiune, o taiem acolo
-    text = re.split(r"\s+\d+(\.\d+)+\.?\s+", text, maxsplit=1)[0]
+    text = _SECTION_SPLIT_RE.split(text, maxsplit=1)[0]
     text = normalize_spaces(text)
 
     text = text.strip(" .")
-    text = re.sub(r"\b(i\.e|e\.g|engl|ex)$", "", text, flags=re.IGNORECASE).strip(" .,;:")
+    text = _ENDING_NOISE_RE.sub("", text).strip(" .,;:")
     return text
 
 
@@ -693,18 +728,24 @@ def is_good_definition(item):
 
 # construieste un regex robust pentru un pattern textual
 
+@lru_cache(maxsize=512)
 def build_pattern_regex(pattern):
     escaped = re.escape(pattern)
     escaped = escaped.replace(r"\ ", r"\s+")
     return rf"(?<![{WORD_CHARS}]){escaped}(?![{WORD_CHARS}])"
 
 
+@lru_cache(maxsize=512)
+def build_pattern_object(pattern):
+    return re.compile(build_pattern_regex(pattern), flags=re.IGNORECASE)
+
+
 # cauta primul pattern valid dintr-un fragment
 
 def find_pattern_match(text, patterns):
     for pattern in patterns:
-        regex = build_pattern_regex(pattern)
-        match = re.search(regex, text, flags=re.IGNORECASE)
+        regex = build_pattern_object(pattern)
+        match = regex.search(text)
 
         if match:
             return pattern, match

@@ -153,6 +153,22 @@ NOISE_STARTS = (
 )
 
 
+# cuvinte si forme care ajuta la verificarea limbii reale a definitiei
+# nu ne bazam doar pe campul language venit din extractor, deoarece acesta poate fi gresit pe fragmente scurte
+ROMANIAN_LANGUAGE_MARKERS = {
+    "este", "sunt", "care", "prin", "pentru", "intr", "intre", "reprezinta",
+    "inseamna", "semnificatie", "semnifica", "sunet", "cuvant", "cuvantul",
+    "notiune", "notiunea", "concept", "conceptul", "definitie", "fata", "putin",
+    "utilizat", "utilizata", "folosit", "folosita", "alcatuit", "rolul", "scopul",
+}
+
+ENGLISH_LANGUAGE_MARKERS = {
+    "is", "are", "the", "which", "that", "with", "from", "means", "represents",
+    "definition", "concept", "used", "refers", "consists", "contains", "includes",
+    "process", "purpose", "role", "sound", "word", "different",
+}
+
+
 # normalizeaza spatiile dintr-un text
 # aceasta functie este folosita des, pentru a pastra aceeasi forma in intrebari si optiuni
 def normalize_spaces(text):
@@ -201,6 +217,34 @@ def canonical_text(text):
     text = re.sub(r"[\"'“”„.,;:!?()\[\]{}]", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
     return text
+
+
+# detecteaza limba reala a unui item de quiz pe baza conceptului si definitiei
+# aceasta verificare repara cazurile in care definitia romaneasca ajunge marcata gresit ca EN
+def detect_quiz_item_language(concept, definition, fallback_language="ro"):
+    combined = normalize_spaces(f"{concept} {definition}")
+    lower = canonical_text(combined)
+    tokens = set(re.findall(r"[a-zA-ZăâîșțĂÂÎȘȚ]+", lower))
+
+    ro_score = 0
+    en_score = 0
+
+    if re.search(r"[ăâîșțĂÂÎȘȚ]", combined):
+        ro_score += 5
+
+    ro_score += sum(1 for token in tokens if token in ROMANIAN_LANGUAGE_MARKERS)
+    en_score += sum(1 for token in tokens if token in ENGLISH_LANGUAGE_MARKERS)
+
+    fallback_language = "ro" if str(fallback_language or "ro").lower() == "ro" else "en"
+
+    # pastram fallback-ul doar cand nu avem indicii clare din text
+    if ro_score == 0 and en_score == 0:
+        return fallback_language
+
+    if ro_score >= en_score:
+        return "ro"
+
+    return "en"
 
 
 # calculeaza o similaritate simpla intre doua texte, fara dependinte externe
@@ -417,12 +461,16 @@ def prepare_quiz_items(definitions):
 
         concept = normalize_concept_for_question(item.get("concept", ""))
         definition = normalize_definition_for_option(item.get("definition", ""))
-        language = item.get("language", "ro") or "ro"
+        language = detect_quiz_item_language(
+            concept=concept,
+            definition=definition,
+            fallback_language=item.get("language", "ro"),
+        )
 
         clean_item = dict(item)
         clean_item["concept"] = concept
         clean_item["definition"] = definition
-        clean_item["language"] = "ro" if language == "ro" else "en"
+        clean_item["language"] = language
         clean_item["intent"] = detect_intent(clean_item)
         clean_item["quiz_score"] = score_quiz_item(clean_item)
 
@@ -446,60 +494,123 @@ def generate_question_variants(concept, intent, lang):
         strategies = {
             "definition": [
                 f"Ce este \"{concept}\"?",
-                f"Cum poate fi definit conceptul \"{concept}\"?",
                 f"Ce reprezinta \"{concept}\"?",
+                f"Cum poate fi definit conceptul \"{concept}\"?",
+                f"Care este descrierea corecta pentru \"{concept}\"?",
+                f"Alege definitia potrivita pentru \"{concept}\".",
+                f"Ce explicatie se potriveste conceptului \"{concept}\"?",
+                f"Cum ai descrie corect \"{concept}\"?",
             ],
             "role": [
                 f"Care este rolul conceptului \"{concept}\"?",
                 f"Ce rol are \"{concept}\"?",
+                f"Pentru ce este important \"{concept}\"?",
+                f"Ce functie indeplineste \"{concept}\"?",
+                f"Care dintre variante explica rolul lui \"{concept}\"?",
             ],
             "usage": [
                 f"Pentru ce este utilizat conceptul \"{concept}\"?",
                 f"La ce este folosit \"{concept}\"?",
+                f"In ce situatie se foloseste \"{concept}\"?",
+                f"Care este utilizarea principala pentru \"{concept}\"?",
+                f"Ce descrie cel mai bine folosirea lui \"{concept}\"?",
             ],
             "structure": [
                 f"Din ce este alcatuit conceptul \"{concept}\"?",
                 f"Ce componente are \"{concept}\"?",
+                f"Care este structura conceptului \"{concept}\"?",
+                f"Ce elemente formeaza \"{concept}\"?",
+                f"Cum este compus \"{concept}\"?",
             ],
             "process": [
                 f"In ce consta \"{concept}\"?",
                 f"Ce proces descrie \"{concept}\"?",
+                f"Cum functioneaza \"{concept}\"?",
+                f"Care varianta explica procesul asociat cu \"{concept}\"?",
+                f"Ce se intampla in cadrul conceptului \"{concept}\"?",
             ],
             "reference": [
                 f"La ce se refera \"{concept}\"?",
                 f"Ce descrie conceptul \"{concept}\"?",
+                f"Cu ce este asociat \"{concept}\"?",
+                f"Care varianta explica referinta conceptului \"{concept}\"?",
+                f"Ce indica, in principal, \"{concept}\"?",
             ],
         }
     else:
         strategies = {
             "definition": [
                 f"What is \"{concept}\"?",
-                f"How can \"{concept}\" be defined?",
                 f"What does \"{concept}\" mean?",
+                f"How can \"{concept}\" be defined?",
+                f"Which option best describes \"{concept}\"?",
+                f"Choose the correct definition for \"{concept}\".",
+                f"Which explanation matches \"{concept}\"?",
+                f"How would you correctly describe \"{concept}\"?",
             ],
             "role": [
                 f"What is the role of \"{concept}\"?",
                 f"What purpose does \"{concept}\" serve?",
+                f"Why is \"{concept}\" important?",
+                f"What function does \"{concept}\" have?",
+                f"Which option explains the role of \"{concept}\"?",
             ],
             "usage": [
                 f"What is \"{concept}\" used for?",
                 f"When is \"{concept}\" used?",
+                f"What is the main use of \"{concept}\"?",
+                f"Which option best describes how \"{concept}\" is used?",
+                f"In what context is \"{concept}\" applied?",
             ],
             "structure": [
                 f"What does \"{concept}\" consist of?",
                 f"What are the components of \"{concept}\"?",
+                f"Which option describes the structure of \"{concept}\"?",
+                f"What elements form \"{concept}\"?",
+                f"How is \"{concept}\" composed?",
             ],
             "process": [
                 f"How does \"{concept}\" work?",
                 f"What process is associated with \"{concept}\"?",
+                f"Which option explains the process behind \"{concept}\"?",
+                f"What happens in \"{concept}\"?",
+                f"How can the process of \"{concept}\" be described?",
             ],
             "reference": [
                 f"What does \"{concept}\" refer to?",
                 f"What is \"{concept}\" related to?",
+                f"Which option explains the reference of \"{concept}\"?",
+                f"What does \"{concept}\" mainly indicate?",
+                f"What idea is associated with \"{concept}\"?",
             ],
         }
 
     return strategies.get(intent, strategies["definition"])
+
+
+# genereaza formulari variate pentru intrebarile inverse
+# utilizatorul primeste definitia si trebuie sa aleaga conceptul potrivit
+def generate_reverse_question_variants(definition, lang):
+    definition = normalize_definition_for_option(definition)
+
+    if lang == "ro":
+        return [
+            f"Ce concept se potriveste definitiei: {definition}?",
+            f"La ce concept face referire urmatoarea descriere: {definition}?",
+            f"Care termen corespunde descrierii: {definition}?",
+            f"Identifica termenul definit astfel: {definition}.",
+            f"Care dintre concepte este descris prin: {definition}?",
+            f"Alege conceptul care se potriveste explicatiei: {definition}.",
+        ]
+
+    return [
+        f"Which concept matches the definition: {definition}?",
+        f"What concept does the following description refer to: {definition}?",
+        f"Which term corresponds to this description: {definition}?",
+        f"Identify the term defined as: {definition}.",
+        f"Which concept is described by: {definition}?",
+        f"Choose the concept that matches this explanation: {definition}.",
+    ]
 
 
 # calculeaza un scor simplu pentru a alege formularea cea mai naturala
@@ -514,65 +625,112 @@ def score_question(question):
     if "care este" in question_lower or "what does" in question_lower:
         score += 2
 
-    if 4 <= word_count <= 11:
+    if "alege" in question_lower or "choose" in question_lower:
+        score += 1
+
+    if "identifica" in question_lower or "identify" in question_lower:
+        score += 1
+
+    if 4 <= word_count <= 14:
         score += 2
 
-    if word_count > 14:
+    if word_count > 22:
         score -= 2
 
     return score
 
 
 # alege una dintre cele mai bune variante de intrebare
-# pastram un mic element random pentru ca regenerarea sa nu produca mereu aceleasi texte
+# nu alegem mereu prima varianta, ca sa evitam quiz-urile repetitive
 def select_human_like_question(variants):
     if not variants:
         return ""
 
     scored = [(question, score_question(question)) for question in variants]
     scored = sorted(scored, key=lambda item: item[1], reverse=True)
-    top = [item[0] for item in scored[:2]]
-    return random.choice(top)
+
+    # pastram mai multe variante bune, nu doar primele doua
+    top_count = min(5, len(scored))
+    top = scored[:top_count]
+
+    weights = []
+    for _question, score in top:
+        weights.append(max(1, score + 1))
+
+    return random.choices([item[0] for item in top], weights=weights, k=1)[0]
 
 
-# construieste un enunt pentru intrebarile true/false
-# folosim pattern-ul original atunci cand exista, ca propozitia sa fie mai naturala
-def build_true_false_statement(item, chosen_definition):
+# construieste propozitia interna pentru intrebarile true/false
+# propozitia se construieste separat de prefix, pentru a putea varia formularea intrebarii
+def build_true_false_core_statement(item, chosen_definition):
     concept = normalize_concept_for_question(item.get("concept", ""))
     pattern = normalize_spaces(item.get("pattern", "")).lower()
-    lang = item.get("language", "ro")
     definition = normalize_definition_for_option(chosen_definition)
+    lang = detect_quiz_item_language(
+        concept=concept,
+        definition=definition,
+        fallback_language=item.get("language", "ro"),
+    )
 
     if lang == "ro":
         if pattern in ROLE_PATTERNS:
-            statement = f"{concept} are rolul de {definition}."
-        elif pattern in USAGE_PATTERNS:
-            statement = f"{concept} este utilizat pentru {definition}."
-        elif pattern in STRUCTURE_PATTERNS:
-            statement = f"{concept} este alcatuit din {definition}."
-        elif pattern in REFERENCE_PATTERNS:
-            statement = f"{concept} se refera la {definition}."
-        elif pattern in PROCESS_PATTERNS:
-            statement = f"{concept} consta in {definition}."
-        else:
-            statement = f"{concept} este {definition}."
+            return f"{concept} are rolul de {definition}."
+        if pattern in USAGE_PATTERNS:
+            return f"{concept} este utilizat pentru {definition}."
+        if pattern in STRUCTURE_PATTERNS:
+            return f"{concept} este alcatuit din {definition}."
+        if pattern in REFERENCE_PATTERNS:
+            return f"{concept} se refera la {definition}."
+        if pattern in PROCESS_PATTERNS:
+            return f"{concept} consta in {definition}."
 
-        return f"Afirmatia urmatoare este adevarata sau falsa? {statement}"
+        return f"{concept} este {definition}."
 
     if pattern in ROLE_PATTERNS:
-        statement = f"{concept} serves to {definition}."
-    elif pattern in USAGE_PATTERNS:
-        statement = f"{concept} is used for {definition}."
-    elif pattern in STRUCTURE_PATTERNS:
-        statement = f"{concept} consists of {definition}."
-    elif pattern in REFERENCE_PATTERNS:
-        statement = f"{concept} refers to {definition}."
-    elif pattern in PROCESS_PATTERNS:
-        statement = f"{concept} involves {definition}."
-    else:
-        statement = f"{concept} is {definition}."
+        return f"{concept} serves to {definition}."
+    if pattern in USAGE_PATTERNS:
+        return f"{concept} is used for {definition}."
+    if pattern in STRUCTURE_PATTERNS:
+        return f"{concept} consists of {definition}."
+    if pattern in REFERENCE_PATTERNS:
+        return f"{concept} refers to {definition}."
+    if pattern in PROCESS_PATTERNS:
+        return f"{concept} involves {definition}."
 
-    return f"Is the following statement true or false? {statement}"
+    return f"{concept} is {definition}."
+
+
+# construieste un enunt pentru intrebarile true/false
+# folosim mai multe prefixe, ca intrebarile sa nu aiba mereu aceeasi forma
+def build_true_false_statement(item, chosen_definition):
+    concept = normalize_concept_for_question(item.get("concept", ""))
+    definition = normalize_definition_for_option(chosen_definition)
+    lang = detect_quiz_item_language(
+        concept=concept,
+        definition=definition,
+        fallback_language=item.get("language", "ro"),
+    )
+
+    statement = build_true_false_core_statement(item, chosen_definition)
+
+    if lang == "ro":
+        variants = [
+            f"Afirmatia urmatoare este adevarata sau falsa? {statement}",
+            f"Stabileste daca enuntul este adevarat sau fals: {statement}",
+            f"Adevarat sau fals: {statement}",
+            f"Enuntul urmator este corect? {statement}",
+            f"Verifica daca afirmatia este adevarata: {statement}",
+        ]
+    else:
+        variants = [
+            f"Is the following statement true or false? {statement}",
+            f"Decide whether this statement is true or false: {statement}",
+            f"True or false: {statement}",
+            f"Is this statement correct? {statement}",
+            f"Check whether the following statement is true: {statement}",
+        ]
+
+    return random.choice(variants)
 
 
 # verifica daca un distractor este suficient de diferit de raspunsul corect
@@ -721,7 +879,11 @@ def choose_concept_distractors(correct_item, items, max_count=3):
 def build_mcq_question(item, items):
     concept = normalize_concept_for_question(item.get("concept", ""))
     definition = normalize_definition_for_option(item.get("definition", ""))
-    lang = item.get("language", "ro")
+    lang = detect_quiz_item_language(
+        concept=concept,
+        definition=definition,
+        fallback_language=item.get("language", "ro"),
+    )
     intent = item.get("intent", detect_intent(item))
 
     distractors = choose_definition_distractors(item, items, max_count=3)
@@ -754,7 +916,11 @@ def build_mcq_question(item, items):
 def build_reverse_question(item, items):
     concept = normalize_concept_for_question(item.get("concept", ""))
     definition = normalize_definition_for_option(item.get("definition", ""))
-    lang = item.get("language", "ro")
+    lang = detect_quiz_item_language(
+        concept=concept,
+        definition=definition,
+        fallback_language=item.get("language", "ro"),
+    )
 
     distractors = choose_concept_distractors(item, items, max_count=3)
 
@@ -769,10 +935,8 @@ def build_reverse_question(item, items):
 
     random.shuffle(options)
 
-    if lang == "ro":
-        question_text = f"Ce concept se potriveste definitiei: {definition}?"
-    else:
-        question_text = f"Which concept matches the definition: {definition}?"
+    variants = generate_reverse_question_variants(definition, lang)
+    question_text = select_human_like_question(variants)
 
     return {
         "type": "mcq_reverse",
@@ -789,7 +953,11 @@ def build_reverse_question(item, items):
 # pentru varianta falsa luam definitia altui concept din aceeasi limba
 def build_true_false_question(item, items):
     definition = normalize_definition_for_option(item.get("definition", ""))
-    lang = item.get("language", "ro")
+    lang = detect_quiz_item_language(
+        concept=item.get("concept", ""),
+        definition=definition,
+        fallback_language=item.get("language", "ro"),
+    )
     distractors = choose_definition_distractors(item, items, max_count=1)
 
     if not distractors:
@@ -810,8 +978,8 @@ def build_true_false_question(item, items):
 
 
 # alege tipurile de intrebari in functie de dificultate
-# ordinea nu este fixa, ca sa obtinem quiz-uri mai variate la regenerare
-def get_question_type_order(difficulty):
+# tinem cont si de cate intrebari de fiecare tip au fost deja generate
+def get_question_type_order(difficulty, question_type_counts=None):
     difficulty = (difficulty or "medium").lower()
 
     if difficulty == "easy":
@@ -821,22 +989,38 @@ def get_question_type_order(difficulty):
     else:
         order = ["mcq", "mcq_reverse", "true_false"]
 
-    # schimbam usor ordinea, dar pastram prioritatea primei categorii
-    first = order[0]
-    rest = order[1:]
-    random.shuffle(rest)
-    return [first] + rest
+    if question_type_counts is None:
+        first = order[0]
+        rest = order[1:]
+        random.shuffle(rest)
+        return [first] + rest
+
+    priority = {}
+    for index, question_type in enumerate(order):
+        priority[question_type] = index
+
+    # alegem mai intai tipurile folosite mai rar, dar pastram prioritatea dificultatii la egalitate
+    ordered = sorted(
+        order,
+        key=lambda question_type: (
+            question_type_counts.get(question_type, 0),
+            priority.get(question_type, 0),
+            random.random(),
+        )
+    )
+
+    return ordered
 
 
 # construieste o intrebare pentru un item, incercand mai multe tipuri daca primul nu are distractori suficienti
-def build_question_for_item(item, items, difficulty):
+def build_question_for_item(item, items, difficulty, question_type_counts=None):
     builders = {
         "mcq": build_mcq_question,
         "mcq_reverse": build_reverse_question,
         "true_false": build_true_false_question,
     }
 
-    for question_type in get_question_type_order(difficulty):
+    for question_type in get_question_type_order(difficulty, question_type_counts):
         question = builders[question_type](item, items)
 
         if question:
@@ -889,6 +1073,11 @@ def generate_questions_for_language(items, language, difficulty="medium", max_qu
     questions = []
     used_sources = set()
     used_question_texts = set()
+    question_type_counts = {
+        "mcq": 0,
+        "mcq_reverse": 0,
+        "true_false": 0,
+    }
 
     for item in build_balanced_item_order(valid_items):
         source_key = (
@@ -900,7 +1089,12 @@ def generate_questions_for_language(items, language, difficulty="medium", max_qu
         if source_key in used_sources:
             continue
 
-        question = build_question_for_item(item, valid_items, difficulty)
+        question = build_question_for_item(
+            item=item,
+            items=valid_items,
+            difficulty=difficulty,
+            question_type_counts=question_type_counts,
+        )
 
         if not question:
             continue
@@ -912,6 +1106,9 @@ def generate_questions_for_language(items, language, difficulty="medium", max_qu
         used_sources.add(source_key)
         used_question_texts.add(question_key)
         questions.append(question)
+
+        question_type = question.get("type")
+        question_type_counts[question_type] = question_type_counts.get(question_type, 0) + 1
 
         if len(questions) >= max_questions:
             break
@@ -940,6 +1137,11 @@ def generate_questions(definitions, difficulty="medium", max_questions=10):
     used_sources = set()
     used_question_texts = set()
     ordered_items = build_balanced_item_order(valid_items)
+    question_type_counts = {
+        "mcq": 0,
+        "mcq_reverse": 0,
+        "true_false": 0,
+    }
 
     # prima trecere: generam intrebari din cele mai bune definitii
     for item in ordered_items:
@@ -952,7 +1154,12 @@ def generate_questions(definitions, difficulty="medium", max_questions=10):
         if source_key in used_sources:
             continue
 
-        question = build_question_for_item(item, valid_items, difficulty)
+        question = build_question_for_item(
+            item=item,
+            items=valid_items,
+            difficulty=difficulty,
+            question_type_counts=question_type_counts,
+        )
 
         if not question:
             continue
@@ -964,6 +1171,9 @@ def generate_questions(definitions, difficulty="medium", max_questions=10):
         used_sources.add(source_key)
         used_question_texts.add(question_key)
         questions.append(question)
+
+        question_type = question.get("type")
+        question_type_counts[question_type] = question_type_counts.get(question_type, 0) + 1
 
         if len(questions) >= max_questions:
             break
@@ -981,7 +1191,12 @@ def generate_questions(definitions, difficulty="medium", max_questions=10):
             if source_key in used_sources:
                 continue
 
-            question = build_question_for_item(item, valid_items, "medium")
+            question = build_question_for_item(
+                item=item,
+                items=valid_items,
+                difficulty="medium",
+                question_type_counts=question_type_counts,
+            )
 
             if not question:
                 continue
@@ -993,6 +1208,9 @@ def generate_questions(definitions, difficulty="medium", max_questions=10):
             used_sources.add(source_key)
             used_question_texts.add(question_key)
             questions.append(question)
+
+            question_type = question.get("type")
+            question_type_counts[question_type] = question_type_counts.get(question_type, 0) + 1
 
             if len(questions) >= max_questions:
                 break
